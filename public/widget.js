@@ -4,6 +4,8 @@
     apiUrl: window.CHATBOT_API_URL || 'https://ian-chatbot-backend-h6zr.vercel.app/api',
     token: null,
     position: 'bottom-right',
+    title: 'Asistente Virtual',
+    greeting: '¡Hola! 👋 Soy tu asistente virtual. ¿En qué puedo ayudarte hoy?',
     primaryColor: '#4F46E5',
     secondaryColor: '#7C3AED'
   };
@@ -13,6 +15,8 @@
   if (currentScript) {
     config.token = currentScript.getAttribute('data-client-token');
     config.position = currentScript.getAttribute('data-position') || config.position;
+    config.title = currentScript.getAttribute('data-title') || config.title;
+    config.greeting = currentScript.getAttribute('data-greeting') || config.greeting;
   }
 
   // Widget styles
@@ -257,7 +261,7 @@
       </div>
       <div class="ian-chatbot-window" id="ian-chatbot-window">
         <div class="ian-chatbot-header">
-          <h3>Asistente Virtual</h3>
+          <h3>${config.title}</h3>
           <button class="ian-chatbot-close" id="ian-chatbot-close">
             ${closeIcon}
           </button>
@@ -265,7 +269,7 @@
         <div class="ian-chatbot-messages" id="ian-chatbot-messages">
           <div class="ian-chatbot-message assistant">
             <div class="ian-chatbot-message-content">
-              ¡Hola! 👋 Soy tu asistente virtual. ¿En qué puedo ayudarte hoy?
+              ${config.greeting}
             </div>
           </div>
         </div>

@@ -70,7 +70,9 @@ router.post('/client', validateAdmin, async (req, res) => {
       contactEmail, 
       assistantId,
       allowedDomains = [],
-      monthlyMessageLimit = 1000
+      monthlyMessageLimit = 1000,
+      widgetTitle,
+      widgetGreeting
     } = req.body;
     
     if (!businessName || !contactEmail || !assistantId) {
@@ -99,7 +101,9 @@ router.post('/client', validateAdmin, async (req, res) => {
       currentMonthMessages: 0,
       createdAt: new Date(),
       status: 'active',
-      token: clientToken
+      token: clientToken,
+      widgetTitle: widgetTitle || 'Asistente Virtual',
+      widgetGreeting: widgetGreeting || '¡Hola! 👋 Soy tu asistente virtual. ¿En qué puedo ayudarte hoy?'
     };
     
     const widgetUrl = process.env.WIDGET_URL || 'https://ian-chatbot-backend-h6zr.vercel.app/widget.js';
@@ -114,6 +118,8 @@ router.post('/client', validateAdmin, async (req, res) => {
     script.src = '${widgetUrl}';
     script.setAttribute('data-client-token', '${clientToken}');
     script.setAttribute('data-position', 'bottom-right');
+    script.setAttribute('data-title', '${clients[clientId].widgetTitle}');
+    script.setAttribute('data-greeting', '${clients[clientId].widgetGreeting}');
     script.async = true;
     document.head.appendChild(script);
   })();
@@ -188,7 +194,9 @@ router.put('/client/:clientId', validateAdmin, async (req, res) => {
       'contactEmail', 
       'allowedDomains', 
       'monthlyMessageLimit', 
-      'status'
+      'status',
+      'widgetTitle',
+      'widgetGreeting'
     ];
     
     allowedUpdates.forEach(field => {
