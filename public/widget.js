@@ -315,9 +315,7 @@
   // Initialize chat session
   async function initSession() {
     try {
-      // Check if we should use demo mode
-      const isDemoMode = window.CHATBOT_DEMO_MODE !== undefined ? window.CHATBOT_DEMO_MODE : true;
-      const endpoint = isDemoMode ? '/chat-demo/session' : '/chat/session';
+      const endpoint = '/chat/session';
       
       const response = await fetch(`${config.apiUrl}${endpoint}`, {
         method: 'POST',
@@ -357,9 +355,7 @@
     document.getElementById('ian-chatbot-send').disabled = true;
 
     try {
-      // Check if we should use demo mode
-      const isDemoMode = window.CHATBOT_DEMO_MODE !== undefined ? window.CHATBOT_DEMO_MODE : true;
-      const endpoint = isDemoMode ? '/chat-demo/message' : '/chat/message';
+      const endpoint = '/chat/message';
       
       const response = await fetch(`${config.apiUrl}${endpoint}`, {
         method: 'POST',
