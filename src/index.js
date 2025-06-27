@@ -59,6 +59,13 @@ const limiter = rateLimit({
 
 app.use('/api/', limiter);
 
+// Serve widget.js
+app.get('/widget.js', (req, res) => {
+  res.setHeader('Content-Type', 'application/javascript');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.sendFile(path.join(__dirname, '../public/widget.js'));
+});
+
 // Root endpoint - API info
 app.get('/', (req, res) => {
   res.json({
