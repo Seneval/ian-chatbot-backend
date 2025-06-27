@@ -23,8 +23,8 @@ const corsOptions = {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    // Allowed origins
-    const allowedOrigins = [
+    // Allowed origins - combine hardcoded and environment variable origins
+    const hardcodedOrigins = [
       'http://localhost:3000',
       'http://localhost:5173',
       'https://ianwebsite.vercel.app',
@@ -32,8 +32,16 @@ const corsOptions = {
       'https://ian-chatbot-backend.vercel.app',
       'https://ianchatbotbackend.vercel.app',
       'https://ian-chatbot-backend-h6zr.vercel.app',
+      'https://seneval.github.io',  // GitHub Pages domain for testing
       /^https:\/\/.*\.vercel\.app$/  // Allow all Vercel preview deployments
     ];
+    
+    // Parse additional origins from environment variable
+    const envOrigins = process.env.ALLOWED_ORIGINS 
+      ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
+      : [];
+    
+    const allowedOrigins = [...hardcodedOrigins, ...envOrigins];
     
     const isAllowed = allowedOrigins.some(allowed => {
       if (allowed instanceof RegExp) {
