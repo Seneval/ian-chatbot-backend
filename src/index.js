@@ -27,6 +27,7 @@ const corsOptions = {
     const hardcodedOrigins = [
       'http://localhost:3000',
       'http://localhost:5173',
+      'https://inteligenciaartificialparanegocios.com',
       'https://ianwebsite.vercel.app',
       'https://ianwebsite-git-dev-patricios-projects-fbd72f4d.vercel.app',
       'https://ian-chatbot-backend.vercel.app',
