@@ -30,6 +30,8 @@ const corsOptions = {
       'https://ianwebsite.vercel.app',
       'https://ianwebsite-git-dev-patricios-projects-fbd72f4d.vercel.app',
       'https://ian-chatbot-backend.vercel.app',
+      'https://ianchatbotbackend.vercel.app',
+      'https://ian-chatbot-backend-h6zr.vercel.app',
       /^https:\/\/.*\.vercel\.app$/  // Allow all Vercel preview deployments
     ];
     
@@ -57,20 +59,19 @@ const limiter = rateLimit({
 
 app.use('/api/', limiter);
 
-// Serve static files
-app.use(express.static(path.join(__dirname, '..')));
-
-// Serve admin static files
-app.use('/admin', express.static(path.join(__dirname, '../../admin')));
-
-// Serve demo.html at root
+// Root endpoint - API info
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'demo.html'));
-});
-
-// Serve test-assistant.html
-app.get('/test-assistant', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'test-assistant.html'));
+  res.json({
+    name: 'iAN Chatbot API',
+    version: '1.0.0',
+    status: 'active',
+    endpoints: {
+      health: '/api/health',
+      auth: '/api/auth/*',
+      chat: '/api/chat/*',
+      analytics: '/api/analytics/*'
+    }
+  });
 });
 
 // Health check
@@ -89,108 +90,6 @@ app.use('/api/chat-demo', validateClient, chatDemoRoutes);
 app.use('/api/analytics', validateClient, analyticsRoutes);
 app.use('/api/auth', authRoutes);
 
-// Widget serving
-app.get('/widget.js', (req, res) => {
-  res.sendFile(path.join(__dirname, '../../widget/build/widget.js'));
-});
-
-// Test page for widget
-app.get('/test-chat', (req, res) => {
-  const token = req.query.token;
-  if (!token) {
-    return res.status(400).send('<h1>Error: Token requerido</h1><p>Por favor proporciona un token válido.</p>');
-  }
-  
-  const html = `<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test Chat - iAN Chatbot</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            padding: 40px;
-            background: #f5f5f5;
-            margin: 0;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: white;
-            padding: 40px;
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-        }
-        h1 { 
-            color: #111827; 
-            margin-bottom: 10px;
-        }
-        p { 
-            color: #6b7280; 
-            line-height: 1.6;
-            margin-bottom: 20px;
-        }
-        .token-info {
-            background: #f3f4f6;
-            padding: 16px;
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 14px;
-            word-break: break-all;
-            color: #374151;
-        }
-        .status {
-            margin-top: 20px;
-            padding: 16px;
-            background: #d1fae5;
-            color: #065f46;
-            border-radius: 8px;
-            border: 1px solid #6ee7b7;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Página de Prueba - iAN Chatbot</h1>
-        <p>Este es un sitio de ejemplo. El chatbot aparecerá en la esquina inferior derecha.</p>
-        <p>Puedes interactuar con el chat para probar su funcionamiento.</p>
-        
-        <div class="token-info">
-            <strong>Token activo:</strong><br>
-            ${token.substring(0, 50)}...
-        </div>
-        
-        <div class="status">
-            ✅ Widget cargándose... Si no aparece en 5 segundos, verifica la consola del navegador.
-        </div>
-    </div>
-    
-    <!-- iAN Chatbot Widget -->
-    <script>
-        window.CHATBOT_API_URL = 'http://localhost:3000/api';
-        window.CHATBOT_DEMO_MODE = false;
-        
-        (function() {
-            var script = document.createElement('script');
-            script.src = '/widget.js';
-            script.setAttribute('data-client-token', '${token}');
-            script.setAttribute('data-position', 'bottom-right');
-            script.async = true;
-            script.onload = function() {
-                console.log('✅ Widget cargado exitosamente');
-            };
-            script.onerror = function() {
-                console.error('❌ Error al cargar el widget');
-            };
-            document.head.appendChild(script);
-        })();
-    </script>
-</body>
-</html>`;
-  
-  res.send(html);
-});
 
 // Error handling middleware
 app.use((err, req, res, next) => {
