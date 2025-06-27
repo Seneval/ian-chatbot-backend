@@ -102,6 +102,8 @@ router.post('/client', validateAdmin, async (req, res) => {
       token: clientToken
     };
     
+    const widgetUrl = process.env.WIDGET_URL || 'https://ian-chatbot-backend-h6zr.vercel.app/widget.js';
+    
     res.json({
       clientId,
       token: clientToken,
@@ -109,7 +111,7 @@ router.post('/client', validateAdmin, async (req, res) => {
 <script>
   (function() {
     var script = document.createElement('script');
-    script.src = 'https://chat.inteligenciaartificialparanegocios.com/widget.js';
+    script.src = '${widgetUrl}';
     script.setAttribute('data-client-token', '${clientToken}');
     script.setAttribute('data-position', 'bottom-right');
     script.async = true;
