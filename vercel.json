@@ -1,14 +1,9 @@
 {
   "version": 2,
-  "name": "ian-chatbot-backend",
-  "functions": {
-    "src/index.js": {
-      "maxDuration": 30,
-      "memory": 1024
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api"
     }
-  },
-  "regions": ["iad1"],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }
