@@ -36,3 +36,6 @@ temp/
 
 # Vercel
 .vercel
+
+# Claude instructions
+CLAUDE.md
