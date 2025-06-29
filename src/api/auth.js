@@ -78,7 +78,7 @@ router.post('/admin/login', async (req, res) => {
 });
 
 // Create new client
-router.post('/clients', validateAdmin, async (req, res) => {
+router.post('/client', validateAdmin, async (req, res) => {
   try {
     const { 
       businessName, 
