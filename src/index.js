@@ -118,7 +118,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/test', testRoutes); // NO authentication required for testing
 app.use('/api/chat', validateClient, chatRoutes);
 app.use('/api/chat-demo', validateClient, chatDemoRoutes);
-app.use('/api/analytics', validateClient, analyticsRoutes);
+app.use('/api/analytics', analyticsRoutes);
 app.use('/api/auth', authRoutes);
 
 // Widget serving
