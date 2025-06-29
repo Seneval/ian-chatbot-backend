@@ -5,8 +5,18 @@ const { v4: uuidv4 } = require('uuid');
 const { validateAdmin } = require('../middleware/auth');
 const router = express.Router();
 
-// Temporary in-memory storage (will be replaced with MongoDB)
-const clients = {};
+// Import MongoDB models
+let Client;
+try {
+  Client = require('../models/Client');
+} catch (error) {
+  console.log('⚠️  MongoDB models not available, using in-memory storage');
+}
+
+// Fallback in-memory storage if MongoDB is not available
+const inMemoryClients = {};
+
+// Admin users (still in-memory for simplicity)
 const admins = {
   'admin': {
     id: 'admin-001',
@@ -15,6 +25,11 @@ const admins = {
     password: '$2a$10$YourHashedPasswordHere',
     role: 'admin'
   }
+};
+
+// Check if MongoDB is available
+const isMongoDBAvailable = () => {
+  return Client && process.env.MONGODB_URI;
 };
 
 // Admin login
@@ -63,13 +78,16 @@ router.post('/admin/login', async (req, res) => {
 });
 
 // Create new client
-router.post('/client', validateAdmin, async (req, res) => {
+router.post('/clients', validateAdmin, async (req, res) => {
   try {
     const { 
       businessName, 
       contactEmail, 
       assistantId,
-      allowedDomains = [],
+      contactPerson,
+      phone,
+      plan = 'basic',
+      notes,
       monthlyMessageLimit = 1000,
       widgetTitle,
       widgetGreeting
@@ -82,34 +100,64 @@ router.post('/client', validateAdmin, async (req, res) => {
     }
     
     const clientId = uuidv4();
-    const clientToken = jwt.sign(
-      { 
-        clientId, 
-        assistantId,
-        businessName 
-      },
-      process.env.JWT_SECRET || 'default-secret-change-this'
-    );
-    
-    clients[clientId] = {
-      id: clientId,
+    const clientData = {
+      clientId,
       businessName,
-      contactEmail,
+      email: contactEmail,
+      contactPerson,
+      phone,
       assistantId,
-      allowedDomains,
+      plan,
+      notes,
       monthlyMessageLimit,
-      currentMonthMessages: 0,
-      createdAt: new Date(),
-      status: 'active',
-      token: clientToken,
       widgetTitle: widgetTitle || 'Asistente Virtual',
       widgetGreeting: widgetGreeting || '¡Hola! 👋 Soy tu asistente virtual. ¿En qué puedo ayudarte hoy?'
     };
     
+    let savedClient;
+    
+    if (isMongoDBAvailable()) {
+      // Use MongoDB
+      const client = new Client(clientData);
+      savedClient = await client.save();
+    } else {
+      // Use in-memory storage
+      clientData.token = uuidv4();
+      clientData.createdAt = new Date();
+      clientData.isActive = true;
+      clientData.totalMessages = 0;
+      clientData.totalSessions = 0;
+      clientData.currentMonthMessages = 0;
+      clientData.currentMonthSessions = 0;
+      inMemoryClients[clientId] = clientData;
+      savedClient = clientData;
+    }
+    
+    // Generate JWT token with client info
+    const clientToken = jwt.sign(
+      { 
+        clientId: savedClient.clientId, 
+        assistantId: savedClient.assistantId,
+        businessName: savedClient.businessName,
+        widgetTitle: savedClient.widgetTitle,
+        widgetGreeting: savedClient.widgetGreeting
+      },
+      process.env.JWT_SECRET || 'default-secret-change-this'
+    );
+    
+    // Update token in database if using MongoDB
+    if (isMongoDBAvailable()) {
+      savedClient.token = clientToken;
+      await savedClient.save();
+    } else {
+      inMemoryClients[clientId].token = clientToken;
+    }
+    
+    // Generate widget URL based on environment
     const widgetUrl = process.env.WIDGET_URL || 'https://ian-chatbot-backend-h6zr.vercel.app/widget.js';
     
     res.json({
-      clientId,
+      clientId: savedClient.clientId,
       token: clientToken,
       widgetCode: `<!-- iAN Chatbot Widget -->
 <script>
@@ -118,8 +166,8 @@ router.post('/client', validateAdmin, async (req, res) => {
     script.src = '${widgetUrl}';
     script.setAttribute('data-client-token', '${clientToken}');
     script.setAttribute('data-position', 'bottom-right');
-    script.setAttribute('data-title', '${clients[clientId].widgetTitle}');
-    script.setAttribute('data-greeting', '${clients[clientId].widgetGreeting}');
+    script.setAttribute('data-title', '${savedClient.widgetTitle}');
+    script.setAttribute('data-greeting', '${savedClient.widgetGreeting}');
     script.async = true;
     document.head.appendChild(script);
   })();
@@ -136,14 +184,31 @@ router.post('/client', validateAdmin, async (req, res) => {
 // Get all clients
 router.get('/clients', validateAdmin, async (req, res) => {
   try {
-    const clientList = Object.values(clients).map(client => ({
-      id: client.id,
+    let clients;
+    
+    if (isMongoDBAvailable()) {
+      // Use MongoDB
+      clients = await Client.find({}).sort({ createdAt: -1 });
+    } else {
+      // Use in-memory storage
+      clients = Object.values(inMemoryClients);
+    }
+    
+    const clientList = clients.map(client => ({
+      id: client.clientId,
       businessName: client.businessName,
-      contactEmail: client.contactEmail,
-      status: client.status,
+      contactEmail: client.email || client.contactEmail,
+      contactPerson: client.contactPerson,
+      plan: client.plan,
+      status: client.isActive ? 'active' : 'inactive',
       currentMonthMessages: client.currentMonthMessages,
       monthlyMessageLimit: client.monthlyMessageLimit,
-      createdAt: client.createdAt
+      totalMessages: client.totalMessages,
+      totalSessions: client.totalSessions,
+      createdAt: client.createdAt,
+      lastActive: client.lastActive,
+      notes: client.notes,
+      paymentStatus: client.paymentStatus
     }));
     
     res.json({ clients: clientList });
@@ -156,10 +221,18 @@ router.get('/clients', validateAdmin, async (req, res) => {
 });
 
 // Get client details
-router.get('/client/:clientId', validateAdmin, async (req, res) => {
+router.get('/clients/:clientId', validateAdmin, async (req, res) => {
   try {
     const { clientId } = req.params;
-    const client = clients[clientId];
+    let client;
+    
+    if (isMongoDBAvailable()) {
+      // Use MongoDB
+      client = await Client.findOne({ clientId });
+    } else {
+      // Use in-memory storage
+      client = inMemoryClients[clientId];
+    }
     
     if (!client) {
       return res.status(404).json({ 
@@ -167,7 +240,29 @@ router.get('/client/:clientId', validateAdmin, async (req, res) => {
       });
     }
     
-    res.json({ client });
+    res.json({ 
+      client: {
+        id: client.clientId,
+        businessName: client.businessName,
+        contactEmail: client.email || client.contactEmail,
+        contactPerson: client.contactPerson,
+        phone: client.phone,
+        assistantId: client.assistantId,
+        plan: client.plan,
+        notes: client.notes,
+        isActive: client.isActive,
+        monthlyMessageLimit: client.monthlyMessageLimit,
+        currentMonthMessages: client.currentMonthMessages,
+        totalMessages: client.totalMessages,
+        totalSessions: client.totalSessions,
+        widgetTitle: client.widgetTitle,
+        widgetGreeting: client.widgetGreeting,
+        createdAt: client.createdAt,
+        lastActive: client.lastActive,
+        paymentStatus: client.paymentStatus,
+        token: client.token
+      }
+    });
   } catch (error) {
     console.error('Error getting client:', error);
     res.status(500).json({ 
@@ -177,37 +272,120 @@ router.get('/client/:clientId', validateAdmin, async (req, res) => {
 });
 
 // Update client
-router.put('/client/:clientId', validateAdmin, async (req, res) => {
+router.put('/clients/:clientId', validateAdmin, async (req, res) => {
   try {
     const { clientId } = req.params;
     const updates = req.body;
     
-    if (!clients[clientId]) {
-      return res.status(404).json({ 
-        error: 'Cliente no encontrado' 
-      });
-    }
+    let client;
     
-    // Update allowed fields only
-    const allowedUpdates = [
-      'businessName', 
-      'contactEmail', 
-      'allowedDomains', 
-      'monthlyMessageLimit', 
-      'status',
-      'widgetTitle',
-      'widgetGreeting'
-    ];
-    
-    allowedUpdates.forEach(field => {
-      if (updates[field] !== undefined) {
-        clients[clientId][field] = updates[field];
+    if (isMongoDBAvailable()) {
+      // Use MongoDB
+      client = await Client.findOne({ clientId });
+      if (!client) {
+        return res.status(404).json({ 
+          error: 'Cliente no encontrado' 
+        });
       }
-    });
+      
+      // Update allowed fields
+      const allowedUpdates = [
+        'businessName', 
+        'email',
+        'contactPerson',
+        'phone',
+        'plan',
+        'notes',
+        'monthlyMessageLimit', 
+        'isActive',
+        'paymentStatus',
+        'widgetTitle',
+        'widgetGreeting'
+      ];
+      
+      allowedUpdates.forEach(field => {
+        if (updates[field] !== undefined) {
+          // Handle email field mapping
+          if (field === 'email' && updates.contactEmail !== undefined) {
+            client[field] = updates.contactEmail;
+          } else if (field === 'isActive' && updates.status !== undefined) {
+            client[field] = updates.status === 'active';
+          } else if (updates[field] !== undefined) {
+            client[field] = updates[field];
+          }
+        }
+      });
+      
+      await client.save();
+      
+      // If widgetTitle or widgetGreeting changed, regenerate token
+      if (updates.widgetTitle !== undefined || updates.widgetGreeting !== undefined) {
+        const newToken = jwt.sign(
+          { 
+            clientId: client.clientId, 
+            assistantId: client.assistantId,
+            businessName: client.businessName,
+            widgetTitle: client.widgetTitle,
+            widgetGreeting: client.widgetGreeting
+          },
+          process.env.JWT_SECRET || 'default-secret-change-this'
+        );
+        client.token = newToken;
+        await client.save();
+      }
+    } else {
+      // Use in-memory storage
+      client = inMemoryClients[clientId];
+      if (!client) {
+        return res.status(404).json({ 
+          error: 'Cliente no encontrado' 
+        });
+      }
+      
+      // Update allowed fields
+      const allowedUpdates = [
+        'businessName', 
+        'contactEmail', 
+        'contactPerson',
+        'phone',
+        'plan',
+        'notes',
+        'monthlyMessageLimit', 
+        'status',
+        'paymentStatus',
+        'widgetTitle',
+        'widgetGreeting'
+      ];
+      
+      allowedUpdates.forEach(field => {
+        if (updates[field] !== undefined) {
+          client[field] = updates[field];
+        }
+      });
+      
+      // If widgetTitle or widgetGreeting changed, regenerate token
+      if (updates.widgetTitle !== undefined || updates.widgetGreeting !== undefined) {
+        const newToken = jwt.sign(
+          { 
+            clientId: client.clientId, 
+            assistantId: client.assistantId,
+            businessName: client.businessName,
+            widgetTitle: client.widgetTitle,
+            widgetGreeting: client.widgetGreeting
+          },
+          process.env.JWT_SECRET || 'default-secret-change-this'
+        );
+        client.token = newToken;
+      }
+    }
     
     res.json({ 
       message: 'Cliente actualizado',
-      client: clients[clientId]
+      client: {
+        id: client.clientId,
+        businessName: client.businessName,
+        isActive: client.isActive || (client.status === 'active')
+      }
     });
   } catch (error) {
     console.error('Error updating client:', error);
@@ -217,33 +395,103 @@ router.put('/client/:clientId', validateAdmin, async (req, res) => {
   }
 });
 
-// Regenerate client token
-router.post('/client/:clientId/regenerate-token', validateAdmin, async (req, res) => {
+// Delete client
+router.delete('/clients/:clientId', validateAdmin, async (req, res) => {
   try {
     const { clientId } = req.params;
-    const client = clients[clientId];
     
-    if (!client) {
-      return res.status(404).json({ 
-        error: 'Cliente no encontrado' 
-      });
+    if (isMongoDBAvailable()) {
+      // Use MongoDB
+      const result = await Client.deleteOne({ clientId });
+      if (result.deletedCount === 0) {
+        return res.status(404).json({ 
+          error: 'Cliente no encontrado' 
+        });
+      }
+    } else {
+      // Use in-memory storage
+      if (!inMemoryClients[clientId]) {
+        return res.status(404).json({ 
+          error: 'Cliente no encontrado' 
+        });
+      }
+      delete inMemoryClients[clientId];
     }
     
-    const newToken = jwt.sign(
-      { 
-        clientId, 
-        assistantId: client.assistantId,
-        businessName: client.businessName 
-      },
-      process.env.JWT_SECRET || 'default-secret-change-this'
-    );
-    
-    client.token = newToken;
-    
-    res.json({
-      message: 'Token regenerado exitosamente',
-      token: newToken
+    res.json({ 
+      message: 'Cliente eliminado exitosamente' 
     });
+  } catch (error) {
+    console.error('Error deleting client:', error);
+    res.status(500).json({ 
+      error: 'Error al eliminar cliente' 
+    });
+  }
+});
+
+// Regenerate client token
+router.post('/clients/:clientId/regenerate-token', validateAdmin, async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    let client;
+    
+    if (isMongoDBAvailable()) {
+      // Use MongoDB
+      client = await Client.findOne({ clientId });
+      if (!client) {
+        return res.status(404).json({ 
+          error: 'Cliente no encontrado' 
+        });
+      }
+      
+      const newToken = await client.regenerateToken();
+      
+      // Update JWT with latest client info
+      const jwtToken = jwt.sign(
+        { 
+          clientId: client.clientId, 
+          assistantId: client.assistantId,
+          businessName: client.businessName,
+          widgetTitle: client.widgetTitle,
+          widgetGreeting: client.widgetGreeting
+        },
+        process.env.JWT_SECRET || 'default-secret-change-this'
+      );
+      
+      client.token = jwtToken;
+      await client.save();
+      
+      res.json({
+        message: 'Token regenerado exitosamente',
+        token: jwtToken
+      });
+    } else {
+      // Use in-memory storage
+      client = inMemoryClients[clientId];
+      if (!client) {
+        return res.status(404).json({ 
+          error: 'Cliente no encontrado' 
+        });
+      }
+      
+      const newToken = jwt.sign(
+        { 
+          clientId: client.clientId, 
+          assistantId: client.assistantId,
+          businessName: client.businessName,
+          widgetTitle: client.widgetTitle,
+          widgetGreeting: client.widgetGreeting
+        },
+        process.env.JWT_SECRET || 'default-secret-change-this'
+      );
+      
+      client.token = newToken;
+      
+      res.json({
+        message: 'Token regenerado exitosamente',
+        token: newToken
+      });
+    }
   } catch (error) {
     console.error('Error regenerating token:', error);
     res.status(500).json({ 

@@ -59,6 +59,37 @@ const clientSchema = new mongoose.Schema({
     type: Number,
     default: 1000
   },
+  widgetTitle: {
+    type: String,
+    default: 'Asistente Virtual',
+    trim: true
+  },
+  widgetGreeting: {
+    type: String,
+    default: '¡Hola! 👋 Soy tu asistente virtual. ¿En qué puedo ayudarte hoy?',
+    trim: true
+  },
+  // Usage tracking
+  totalMessages: {
+    type: Number,
+    default: 0
+  },
+  totalSessions: {
+    type: Number,
+    default: 0
+  },
+  currentMonthMessages: {
+    type: Number,
+    default: 0
+  },
+  currentMonthSessions: {
+    type: Number,
+    default: 0
+  },
+  lastMonthReset: {
+    type: Date,
+    default: Date.now
+  },
   createdAt: { 
     type: Date, 
     default: Date.now 
@@ -83,6 +114,40 @@ clientSchema.methods.regenerateToken = function() {
 
 clientSchema.methods.updateActivity = function() {
   this.lastActive = new Date();
+  return this.save();
+};
+
+clientSchema.methods.incrementMessageCount = function() {
+  const now = new Date();
+  const lastReset = new Date(this.lastMonthReset);
+  
+  // Check if we need to reset monthly counters
+  if (now.getMonth() !== lastReset.getMonth() || now.getFullYear() !== lastReset.getFullYear()) {
+    this.currentMonthMessages = 0;
+    this.currentMonthSessions = 0;
+    this.lastMonthReset = now;
+  }
+  
+  this.totalMessages += 1;
+  this.currentMonthMessages += 1;
+  this.lastActive = now;
+  return this.save();
+};
+
+clientSchema.methods.incrementSessionCount = function() {
+  const now = new Date();
+  const lastReset = new Date(this.lastMonthReset);
+  
+  // Check if we need to reset monthly counters
+  if (now.getMonth() !== lastReset.getMonth() || now.getFullYear() !== lastReset.getFullYear()) {
+    this.currentMonthMessages = 0;
+    this.currentMonthSessions = 0;
+    this.lastMonthReset = now;
+  }
+  
+  this.totalSessions += 1;
+  this.currentMonthSessions += 1;
+  this.lastActive = now;
   return this.save();
 };
 

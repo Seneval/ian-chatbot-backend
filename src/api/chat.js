@@ -3,38 +3,81 @@ const OpenAI = require('openai');
 const { v4: uuidv4 } = require('uuid');
 const router = express.Router();
 
-// Initialize OpenAI client with Claude's integrated access
+// Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'sk-demo-key-for-development'
 });
 
-// In-memory storage for now (replace with MongoDB in production)
-const sessions = {};
-const messageHistory = {};
+// Import MongoDB models
+let Session, Message, Client;
+try {
+  Session = require('../models/Session');
+  Message = require('../models/Message');
+  Client = require('../models/Client');
+} catch (error) {
+  console.log('⚠️  MongoDB models not available, using in-memory storage');
+}
+
+// Fallback in-memory storage if MongoDB is not available
+const inMemorySessions = {};
+const inMemoryMessages = {};
+
+// Check if MongoDB is available
+const isMongoDBAvailable = () => {
+  return Session && Message && Client && process.env.MONGODB_URI;
+};
 
 // Create or get session
-router.post('/session', async (req, res) => {
+router.post('/sessions', async (req, res) => {
   try {
     const { clientId, assistantId } = req.client;
     const sessionId = uuidv4();
     
     console.log('Creating session for client:', { clientId, assistantId });
     
-    sessions[sessionId] = {
-      clientId,
-      assistantId,
-      threadId: null,
-      createdAt: new Date()
-    };
-    
     // Create OpenAI thread for this session
     const thread = await openai.beta.threads.create();
-    sessions[sessionId].threadId = thread.id;
+    
+    let savedSession;
+    
+    if (isMongoDBAvailable()) {
+      // Use MongoDB
+      const session = new Session({
+        sessionId,
+        clientId,
+        threadId: thread.id,
+        metadata: {
+          userAgent: req.headers['user-agent'],
+          ipAddress: req.ip,
+          referrer: req.headers['referer']
+        }
+      });
+      savedSession = await session.save();
+      
+      // Update client statistics
+      const client = await Client.findOne({ clientId });
+      if (client) {
+        await client.incrementSessionCount();
+      }
+    } else {
+      // Use in-memory storage
+      const sessionData = {
+        sessionId,
+        clientId,
+        assistantId,
+        threadId: thread.id,
+        createdAt: new Date(),
+        messageCount: 0,
+        isActive: true
+      };
+      inMemorySessions[sessionId] = sessionData;
+      savedSession = sessionData;
+    }
     
     console.log('Session created:', { sessionId, threadId: thread.id });
     
     res.json({
-      sessionId,
+      sessionId: savedSession.sessionId,
       threadId: thread.id
     });
   } catch (error) {
@@ -46,7 +89,7 @@ router.post('/session', async (req, res) => {
 });
 
 // Send message to assistant
-router.post('/message', async (req, res) => {
+router.post('/messages', async (req, res) => {
   try {
     const { sessionId, message } = req.body;
     const { clientId } = req.client;
@@ -57,11 +100,35 @@ router.post('/message', async (req, res) => {
       });
     }
     
-    const session = sessions[sessionId];
-    if (!session || session.clientId !== clientId) {
-      return res.status(404).json({ 
-        error: 'Sesión no encontrada' 
-      });
+    let session;
+    let assistantId;
+    
+    if (isMongoDBAvailable()) {
+      // Use MongoDB
+      session = await Session.findOne({ sessionId, clientId });
+      if (!session) {
+        return res.status(404).json({ 
+          error: 'Sesión no encontrada' 
+        });
+      }
+      
+      // Get assistantId from client
+      const client = await Client.findOne({ clientId });
+      if (!client) {
+        return res.status(404).json({ 
+          error: 'Cliente no encontrado' 
+        });
+      }
+      assistantId = client.assistantId;
+    } else {
+      // Use in-memory storage
+      session = inMemorySessions[sessionId];
+      if (!session || session.clientId !== clientId) {
+        return res.status(404).json({ 
+          error: 'Sesión no encontrada' 
+        });
+      }
+      assistantId = session.assistantId;
     }
     
     if (!session.threadId) {
@@ -70,7 +137,6 @@ router.post('/message', async (req, res) => {
       });
     }
     
-    const assistantId = session.assistantId;
     if (!assistantId) {
       return res.status(400).json({ 
         error: 'Assistant ID no encontrado para esta sesión' 
@@ -78,6 +144,27 @@ router.post('/message', async (req, res) => {
     }
     
     console.log('Processing message with:', { sessionId, threadId: session.threadId, assistantId, clientId });
+    
+    // Save user message
+    if (isMongoDBAvailable()) {
+      const userMessage = new Message({
+        sessionId,
+        clientId,
+        role: 'user',
+        content: message
+      });
+      await userMessage.save();
+    } else {
+      const messageId = uuidv4();
+      inMemoryMessages[messageId] = {
+        messageId,
+        sessionId,
+        clientId,
+        role: 'user',
+        content: message,
+        timestamp: new Date()
+      };
+    }
     
     // Add message to thread
     console.log('Adding message to thread:', session.threadId);
@@ -99,135 +186,257 @@ router.post('/message', async (req, res) => {
     }
     console.log('Run created successfully:', run.id);
     
-    // Store IDs locally to avoid any reference issues
-    const threadId = session.threadId;
-    const runId = run.id;
+    // Poll for completion with correct API format
+    let runStatus = run;
+    const maxPolls = 30;
+    let pollCount = 0;
     
-    // Validate IDs before proceeding
-    if (!threadId || !runId) {
-      throw new Error(`Missing IDs - threadId: ${threadId}, runId: ${runId}`);
-    }
-    
-    // Poll for completion
-    console.log('Retrieving run status for:', { threadId, runId });
-    console.log('Type of threadId:', typeof threadId, 'Value:', threadId);
-    console.log('Type of runId:', typeof runId, 'Value:', runId);
-    
-    // Double check the values right before the API call
-    if (threadId === undefined || threadId === null) {
-      throw new Error('threadId is undefined or null right before API call!');
-    }
-    
-    // Use correct format with thread_id in params object
-    let runStatus = await openai.beta.threads.runs.retrieve(runId, { thread_id: threadId });
-    console.log('Initial run status:', runStatus.status);
-    
-    while (runStatus.status !== 'completed') {
+    while (runStatus.status !== 'completed' && runStatus.status !== 'failed' && pollCount < maxPolls) {
       await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Polling run status...');
-      runStatus = await openai.beta.threads.runs.retrieve(runId, { thread_id: threadId });
-      console.log('Current run status:', runStatus.status);
+      console.log(`Polling run status (attempt ${pollCount + 1}/${maxPolls})...`);
       
-      if (runStatus.status === 'failed') {
-        console.error('Run failed:', runStatus);
-        throw new Error('Assistant run failed: ' + JSON.stringify(runStatus.last_error));
+      // CRITICAL: Use the correct format with thread_id in params
+      runStatus = await openai.beta.threads.runs.retrieve(run.id, { 
+        thread_id: session.threadId 
+      });
+      
+      console.log('Run status:', runStatus.status);
+      pollCount++;
+    }
+    
+    if (runStatus.status === 'failed') {
+      console.error('Run failed:', runStatus);
+      throw new Error('El asistente no pudo procesar la solicitud');
+    }
+    
+    if (pollCount >= maxPolls) {
+      throw new Error('Timeout esperando respuesta del asistente');
+    }
+    
+    // Get messages
+    console.log('Retrieving messages from thread:', session.threadId);
+    const messages = await openai.beta.threads.messages.list(session.threadId);
+    
+    // Find the assistant's response
+    const assistantMessage = messages.data.find(msg => msg.role === 'assistant');
+    
+    if (!assistantMessage) {
+      throw new Error('No se encontró respuesta del asistente');
+    }
+    
+    const responseContent = assistantMessage.content[0].text.value;
+    
+    // Save assistant message and update statistics
+    if (isMongoDBAvailable()) {
+      const assistantMsg = new Message({
+        sessionId,
+        clientId,
+        messageId: assistantMessage.id,
+        role: 'assistant',
+        content: responseContent
+      });
+      await assistantMsg.save();
+      
+      // Update session
+      await session.incrementMessageCount();
+      
+      // Update client statistics
+      const client = await Client.findOne({ clientId });
+      if (client) {
+        await client.incrementMessageCount();
+      }
+    } else {
+      const messageId = uuidv4();
+      inMemoryMessages[messageId] = {
+        messageId: assistantMessage.id,
+        sessionId,
+        clientId,
+        role: 'assistant',
+        content: responseContent,
+        timestamp: new Date()
+      };
+      
+      // Update session in memory
+      if (inMemorySessions[sessionId]) {
+        inMemorySessions[sessionId].messageCount = (inMemorySessions[sessionId].messageCount || 0) + 2;
+        inMemorySessions[sessionId].lastMessageAt = new Date();
       }
     }
     
-    // Get the assistant's response
-    console.log('Getting messages for thread:', threadId);
-    const messages = await openai.beta.threads.messages.list(threadId);
-    const lastMessage = messages.data[0];
-    
-    // Store message history for analytics
-    if (!messageHistory[clientId]) {
-      messageHistory[clientId] = [];
-    }
-    
-    messageHistory[clientId].push({
-      sessionId,
-      userMessage: message,
-      assistantMessage: lastMessage.content[0].text.value,
-      timestamp: new Date()
-    });
+    console.log('Assistant response received and saved');
     
     res.json({
-      message: lastMessage.content[0].text.value,
-      messageId: lastMessage.id
+      message: responseContent,
+      sessionId,
+      messageId: assistantMessage.id
     });
   } catch (error) {
     console.error('Error processing message:', error);
-    console.error('Error details:', {
-      message: error.message,
-      status: error.status,
-      code: error.code,
-      param: error.param,
-      type: error.type
-    });
+    
+    // Save error message if using MongoDB
+    if (isMongoDBAvailable() && req.body.sessionId) {
+      try {
+        const errorMessage = new Message({
+          sessionId: req.body.sessionId,
+          clientId: req.client.clientId,
+          role: 'system',
+          content: `Error: ${error.message}`,
+          metadata: {
+            errorMessage: error.message
+          }
+        });
+        await errorMessage.save();
+      } catch (saveError) {
+        console.error('Error saving error message:', saveError);
+      }
+    }
     
     res.status(500).json({ 
-      error: 'Error al procesar mensaje',
-      details: error.message,
-      type: error.type,
-      param: error.param
+      error: error.message || 'Error al procesar mensaje',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
 
-// Get chat history
-router.get('/history/:sessionId', async (req, res) => {
+// Get session history
+router.get('/sessions/:sessionId/messages', async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { clientId } = req.client;
+    const { limit = 50, offset = 0 } = req.query;
     
-    const session = sessions[sessionId];
-    if (!session || session.clientId !== clientId) {
-      return res.status(404).json({ 
-        error: 'Sesión no encontrada' 
+    let messages;
+    
+    if (isMongoDBAvailable()) {
+      // Verify session belongs to client
+      const session = await Session.findOne({ sessionId, clientId });
+      if (!session) {
+        return res.status(404).json({ 
+          error: 'Sesión no encontrada' 
+        });
+      }
+      
+      // Get messages
+      messages = await Message.findBySession(sessionId, {
+        limit: parseInt(limit),
+        order: 'asc'
       });
+    } else {
+      // Use in-memory storage
+      const session = inMemorySessions[sessionId];
+      if (!session || session.clientId !== clientId) {
+        return res.status(404).json({ 
+          error: 'Sesión no encontrada' 
+        });
+      }
+      
+      messages = Object.values(inMemoryMessages)
+        .filter(msg => msg.sessionId === sessionId)
+        .sort((a, b) => a.timestamp - b.timestamp)
+        .slice(parseInt(offset), parseInt(offset) + parseInt(limit));
     }
     
-    const messages = await openai.beta.threads.messages.list(session.threadId);
-    
     res.json({
-      messages: messages.data.reverse().map(msg => ({
+      sessionId,
+      messages: messages.map(msg => ({
+        messageId: msg.messageId,
         role: msg.role,
-        content: msg.content[0].text.value,
-        timestamp: msg.created_at
-      }))
+        content: msg.content,
+        timestamp: msg.timestamp || msg.createdAt
+      })),
+      total: messages.length
     });
   } catch (error) {
-    console.error('Error getting history:', error);
+    console.error('Error getting session history:', error);
     res.status(500).json({ 
       error: 'Error al obtener historial' 
     });
   }
 });
 
-// Test endpoint to verify assistant exists
-router.get('/test-assistant/:assistantId', async (req, res) => {
+// Get client sessions
+router.get('/sessions', async (req, res) => {
   try {
-    const { assistantId } = req.params;
-    console.log('Testing assistant:', assistantId);
+    const { clientId } = req.client;
+    const { limit = 20, offset = 0, active } = req.query;
     
-    const assistant = await openai.beta.assistants.retrieve(assistantId);
-    console.log('Assistant found:', assistant.name);
+    let sessions;
     
-    res.json({ 
-      success: true, 
-      assistant: {
-        id: assistant.id,
-        name: assistant.name,
-        model: assistant.model,
-        instructions: assistant.instructions?.substring(0, 100) + '...'
+    if (isMongoDBAvailable()) {
+      const options = {};
+      if (active !== undefined) {
+        options.active = active === 'true';
       }
+      
+      sessions = await Session.findByClient(clientId, options);
+      sessions = sessions
+        .slice(parseInt(offset), parseInt(offset) + parseInt(limit));
+    } else {
+      // Use in-memory storage
+      sessions = Object.values(inMemorySessions)
+        .filter(s => {
+          if (s.clientId !== clientId) return false;
+          if (active !== undefined) {
+            return s.isActive === (active === 'true');
+          }
+          return true;
+        })
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(parseInt(offset), parseInt(offset) + parseInt(limit));
+    }
+    
+    res.json({
+      sessions: sessions.map(session => ({
+        sessionId: session.sessionId,
+        createdAt: session.createdAt,
+        lastMessageAt: session.lastMessageAt,
+        messageCount: session.messageCount,
+        isActive: session.isActive
+      })),
+      total: sessions.length
     });
   } catch (error) {
-    console.error('Error retrieving assistant:', error);
-    res.json({ 
-      success: false, 
-      error: error.message,
-      details: error.response?.data || error
+    console.error('Error getting sessions:', error);
+    res.status(500).json({ 
+      error: 'Error al obtener sesiones' 
+    });
+  }
+});
+
+// End session
+router.post('/sessions/:sessionId/end', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { clientId } = req.client;
+    
+    if (isMongoDBAvailable()) {
+      const session = await Session.findOne({ sessionId, clientId });
+      if (!session) {
+        return res.status(404).json({ 
+          error: 'Sesión no encontrada' 
+        });
+      }
+      
+      await session.endSession();
+    } else {
+      // Use in-memory storage
+      const session = inMemorySessions[sessionId];
+      if (!session || session.clientId !== clientId) {
+        return res.status(404).json({ 
+          error: 'Sesión no encontrada' 
+        });
+      }
+      
+      session.isActive = false;
+    }
+    
+    res.json({
+      message: 'Sesión finalizada exitosamente'
+    });
+  } catch (error) {
+    console.error('Error ending session:', error);
+    res.status(500).json({ 
+      error: 'Error al finalizar sesión' 
     });
   }
 });
