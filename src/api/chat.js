@@ -28,7 +28,7 @@ const isMongoDBAvailable = () => {
 };
 
 // Create or get session
-router.post('/sessions', async (req, res) => {
+router.post('/session', async (req, res) => {
   try {
     const { clientId, assistantId } = req.client;
     const sessionId = uuidv4();
@@ -89,7 +89,7 @@ router.post('/sessions', async (req, res) => {
 });
 
 // Send message to assistant
-router.post('/messages', async (req, res) => {
+router.post('/message', async (req, res) => {
   try {
     const { sessionId, message } = req.body;
     const { clientId } = req.client;
