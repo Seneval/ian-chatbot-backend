@@ -4,9 +4,6 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 
-// Import database connection
-const { connectDB } = require('./config/database');
-
 // Import routes
 const chatRoutes = require('./api/chat');
 const chatDemoRoutes = require('./api/chat-demo');
@@ -20,50 +17,21 @@ const { validateClient } = require('./middleware/auth');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Connect to MongoDB
-const initializeDatabase = async () => {
-  try {
-    if (process.env.MONGODB_URI) {
-      await connectDB();
-    } else {
-      console.log('⚠️  MONGODB_URI not found, using in-memory storage');
-    }
-  } catch (error) {
-    console.error('❌ Database connection failed:', error);
-    console.log('⚠️  Falling back to in-memory storage');
-  }
-};
-
-// Initialize database connection
-initializeDatabase();
-
 // CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    // Allowed origins - combine hardcoded and environment variable origins
-    const hardcodedOrigins = [
+    // Allowed origins
+    const allowedOrigins = [
       'http://localhost:3000',
       'http://localhost:5173',
       'https://ianwebsite.vercel.app',
       'https://ianwebsite-git-dev-patricios-projects-fbd72f4d.vercel.app',
       'https://ian-chatbot-backend.vercel.app',
-      'https://ianchatbotbackend.vercel.app',
-      'https://ian-chatbot-backend-h6zr.vercel.app',
-      'https://seneval.github.io',  // GitHub Pages domain for testing
-      'https://inteligenciaartificialparanegocios.com',
-      'https://www.inteligenciaartificialparanegocios.com',
       /^https:\/\/.*\.vercel\.app$/  // Allow all Vercel preview deployments
     ];
-    
-    // Parse additional origins from environment variable
-    const envOrigins = process.env.ALLOWED_ORIGINS 
-      ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
-      : [];
-    
-    const allowedOrigins = [...hardcodedOrigins, ...envOrigins];
     
     const isAllowed = allowedOrigins.some(allowed => {
       if (allowed instanceof RegExp) {
@@ -93,7 +61,7 @@ app.use('/api/', limiter);
 app.use(express.static(path.join(__dirname, '..')));
 
 // Serve admin static files
-app.use('/admin', express.static(path.join(__dirname, 'admin')));
+app.use('/admin', express.static(path.join(__dirname, '../../admin')));
 
 // Serve demo.html at root
 app.get('/', (req, res) => {
@@ -118,14 +86,12 @@ app.get('/api/health', (req, res) => {
 app.use('/api/test', testRoutes); // NO authentication required for testing
 app.use('/api/chat', validateClient, chatRoutes);
 app.use('/api/chat-demo', validateClient, chatDemoRoutes);
-app.use('/api/analytics', analyticsRoutes);
+app.use('/api/analytics', validateClient, analyticsRoutes);
 app.use('/api/auth', authRoutes);
 
 // Widget serving
 app.get('/widget.js', (req, res) => {
-  res.setHeader('Content-Type', 'application/javascript');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.sendFile(path.join(__dirname, '../public/widget.js'));
+  res.sendFile(path.join(__dirname, '../../widget/build/widget.js'));
 });
 
 // Test page for widget

@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /components/
+Disallow: /js/
+Disallow: /css/
+Disallow: /assets/
+
+Sitemap: https://inteligenciaartificialparanegocios.com/sitemap.xml

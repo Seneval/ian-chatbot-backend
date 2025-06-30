@@ -1,0 +1,21 @@
+{
+  "name": "ian-chatbot-widget",
+  "version": "1.0.0",
+  "description": "Widget de chat para iAN Chatbot",
+  "main": "build/widget.min.js",
+  "scripts": {
+    "build": "node build.js",
+    "watch": "nodemon --watch src --ext js --exec npm run build"
+  },
+  "keywords": [
+    "chatbot",
+    "widget",
+    "ian"
+  ],
+  "author": "iAN",
+  "license": "ISC",
+  "devDependencies": {
+    "terser": "^5.31.0",
+    "nodemon": "^3.1.0"
+  }
+}
