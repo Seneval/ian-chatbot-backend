@@ -55,6 +55,7 @@ const corsOptions = {
       'https://seneval.github.io',  // GitHub Pages domain for testing
       'https://inteligenciaartificialparanegocios.com',
       'https://www.inteligenciaartificialparanegocios.com',
+      'https://admin.inteligenciaartificialparanegocios.com',  // Admin subdomain
       /^https:\/\/.*\.vercel\.app$/  // Allow all Vercel preview deployments
     ];
     
@@ -88,6 +89,21 @@ const limiter = rateLimit({
 });
 
 app.use('/api/', limiter);
+
+// Handle admin subdomain
+app.use((req, res, next) => {
+  const host = req.get('host');
+  
+  // If accessing via admin.inteligenciaartificialparanegocios.com
+  if (host && host.startsWith('admin.')) {
+    // Redirect root to /admin
+    if (req.path === '/') {
+      return res.redirect('/admin');
+    }
+  }
+  
+  next();
+});
 
 // Serve static files
 app.use(express.static(path.join(__dirname, '..')));
