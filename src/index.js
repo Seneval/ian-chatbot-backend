@@ -73,7 +73,11 @@ const corsOptions = {
       return allowed === origin;
     });
     
-    callback(null, isAllowed);
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
   },
   credentials: true
 };
