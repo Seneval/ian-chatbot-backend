@@ -83,7 +83,7 @@ class AdminAPI {
     
     // Get conversation details
     async getConversation(conversationId) {
-        const response = await this.fetch(`${this.baseURL}/analytics/conversation/${conversationId}`);
+        const response = await this.fetch(`${this.baseURL}/analytics/conversations/${conversationId}`);
         return this.handleResponse(response);
     }
     

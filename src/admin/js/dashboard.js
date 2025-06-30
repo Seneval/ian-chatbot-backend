@@ -514,7 +514,7 @@ function renderConversations(conversations, clientId) {
     const listContainer = document.getElementById('conversationsList');
     
     listContainer.innerHTML = conversations.map(conv => {
-        const firstMessage = conv.firstMessage ? conv.firstMessage.content.substring(0, 100) + '...' : 'Sin mensajes';
+        const firstMessage = conv.firstMessage ? conv.firstMessage.content.substring(0, 200) + '...' : 'Sin mensajes';
         const messageCount = conv.messageCount || 0;
         const duration = conv.duration ? `${Math.round(conv.duration / 60)} min` : 'N/A';
         const date = new Date(conv.createdAt).toLocaleString('es-MX', {

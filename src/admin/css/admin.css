@@ -780,6 +780,76 @@ a:hover {
     }
 }
 
+/* Analytics Compact Stats */
+.analytics-stats-compact {
+    display: flex;
+    gap: 2rem;
+    padding: 1rem;
+    background: var(--gray-50);
+    border-radius: var(--radius);
+    margin-bottom: 1rem;
+    justify-content: center;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.stat-label {
+    color: var(--gray-600);
+    font-size: 0.875rem;
+}
+
+.stat-value {
+    font-weight: 600;
+    color: var(--gray-900);
+    font-size: 1.125rem;
+}
+
+/* Conversations Section - Main Focus */
+.conversations-section.main-focus {
+    margin-top: 0;
+}
+
+.conversations-list {
+    max-height: 600px;
+    overflow-y: auto;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+}
+
+.conversation-item {
+    padding: 1.25rem;
+    border-bottom: 1px solid var(--gray-100);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.conversation-item:hover {
+    background: var(--gray-50);
+}
+
+.conversation-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.conversation-date {
+    font-weight: 500;
+    color: var(--gray-700);
+    font-size: 0.9rem;
+}
+
+.preview-text {
+    color: var(--gray-600);
+    line-height: 1.5;
+    font-size: 0.875rem;
+}
+
 /* Form Row */
 .form-row {
     display: grid;

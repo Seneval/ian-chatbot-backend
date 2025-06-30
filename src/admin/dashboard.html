@@ -309,33 +309,24 @@
             </div>
             
             <div class="modal-body">
-                <!-- Analytics Stats -->
-                <div class="analytics-stats">
-                    <div class="stat-card">
-                        <div class="stat-icon">💬</div>
-                        <div class="stat-content">
-                            <h3 id="totalConversations">0</h3>
-                            <p>Conversaciones</p>
-                        </div>
+                <!-- Compact Stats Bar -->
+                <div class="analytics-stats-compact">
+                    <div class="stat-item">
+                        <span class="stat-label">Conversaciones:</span>
+                        <span class="stat-value" id="totalConversations">0</span>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">📝</div>
-                        <div class="stat-content">
-                            <h3 id="totalMessages">0</h3>
-                            <p>Mensajes</p>
-                        </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Mensajes:</span>
+                        <span class="stat-value" id="totalMessages">0</span>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">📊</div>
-                        <div class="stat-content">
-                            <h3 id="avgMessages">0</h3>
-                            <p>Promedio por conversación</p>
-                        </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Promedio:</span>
+                        <span class="stat-value" id="avgMessages">0</span>
                     </div>
                 </div>
 
-                <!-- Conversations List -->
-                <div class="conversations-section">
+                <!-- Conversations List (Main Focus) -->
+                <div class="conversations-section main-focus">
                     <div class="section-header">
                         <h3>Conversaciones Recientes</h3>
                         <button class="btn btn-secondary btn-sm" onclick="exportConversations()">
