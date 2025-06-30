@@ -300,6 +300,91 @@
         </div>
     </div>
 
+    <!-- Analytics Modal -->
+    <div id="analyticsModal" class="modal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2>📊 Analytics - <span id="analyticsClientName"></span></h2>
+                <button class="close-btn" onclick="closeModal('analyticsModal')">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <!-- Analytics Stats -->
+                <div class="analytics-stats">
+                    <div class="stat-card">
+                        <div class="stat-icon">💬</div>
+                        <div class="stat-content">
+                            <h3 id="totalConversations">0</h3>
+                            <p>Conversaciones</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📝</div>
+                        <div class="stat-content">
+                            <h3 id="totalMessages">0</h3>
+                            <p>Mensajes</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-content">
+                            <h3 id="avgMessages">0</h3>
+                            <p>Promedio por conversación</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Conversations List -->
+                <div class="conversations-section">
+                    <div class="section-header">
+                        <h3>Conversaciones Recientes</h3>
+                        <button class="btn btn-secondary btn-sm" onclick="exportConversations()">
+                            📥 Exportar
+                        </button>
+                    </div>
+                    
+                    <div id="conversationsLoading" class="loading-state">
+                        <div class="loading-spinner"></div>
+                        <p>Cargando conversaciones...</p>
+                    </div>
+                    
+                    <div id="conversationsList" class="conversations-list" style="display: none;">
+                        <!-- Conversations will be loaded here -->
+                    </div>
+                    
+                    <div id="noConversations" class="empty-state" style="display: none;">
+                        <p>No hay conversaciones registradas</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Conversation Detail Modal -->
+    <div id="conversationModal" class="modal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2>💬 Detalle de Conversación</h2>
+                <button class="close-btn" onclick="closeModal('conversationModal')">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <div id="conversationInfo" class="conversation-info">
+                    <!-- Conversation metadata -->
+                </div>
+                
+                <div id="messagesLoading" class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <p>Cargando mensajes...</p>
+                </div>
+                
+                <div id="messagesList" class="messages-list" style="display: none;">
+                    <!-- Messages will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="js/auth.js"></script>
     <script src="js/api.js"></script>
