@@ -20,7 +20,7 @@ class AdminAPI {
     
     // Get all clients
     async getClients() {
-        const response = await this.fetch(`${this.baseURL}/auth/clients`);
+        const response = await this.fetch(`${this.baseURL}/auth/client`);
         return this.handleResponse(response);
     }
     
