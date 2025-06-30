@@ -388,9 +388,52 @@ Equipo iAN`);
 }
 
 // View analytics
-function viewAnalytics(clientId) {
-    // For now, show a message. Will implement when analytics are ready
-    adminUtils.showToast('Analytics próximamente disponible', 'info');
+async function viewAnalytics(clientId) {
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return;
+    
+    // Set client name in modal
+    document.getElementById('analyticsClientName').textContent = client.businessName;
+    
+    // Show modal
+    openModal('analyticsModal');
+    
+    // Show loading state
+    document.getElementById('conversationsLoading').style.display = 'flex';
+    document.getElementById('conversationsList').style.display = 'none';
+    document.getElementById('noConversations').style.display = 'none';
+    
+    try {
+        // Get analytics overview
+        const analytics = await adminAPI.getAnalytics(clientId);
+        
+        // Update stats
+        document.getElementById('totalConversations').textContent = analytics.metrics.totalConversations || 0;
+        document.getElementById('totalMessages').textContent = analytics.metrics.totalMessages || 0;
+        document.getElementById('avgMessages').textContent = Math.round(analytics.metrics.averageMessagesPerConversation || 0);
+        
+        // Get conversations
+        const conversationsData = await adminAPI.getConversations(clientId);
+        
+        // Hide loading
+        document.getElementById('conversationsLoading').style.display = 'none';
+        
+        if (conversationsData.conversations && conversationsData.conversations.length > 0) {
+            renderConversations(conversationsData.conversations, clientId);
+            document.getElementById('conversationsList').style.display = 'block';
+        } else {
+            document.getElementById('noConversations').style.display = 'block';
+        }
+        
+        // Store current client ID for export
+        window.currentAnalyticsClientId = clientId;
+        
+    } catch (error) {
+        console.error('Error loading analytics:', error);
+        adminUtils.showToast('Error al cargar analytics', 'error');
+        document.getElementById('conversationsLoading').style.display = 'none';
+        document.getElementById('noConversations').style.display = 'block';
+    }
 }
 
 // Regenerate token
@@ -464,6 +507,136 @@ function openModal(modalId) {
 
 function closeModal(modalId) {
     document.getElementById(modalId).classList.remove('active');
+}
+
+// Render conversations list
+function renderConversations(conversations, clientId) {
+    const listContainer = document.getElementById('conversationsList');
+    
+    listContainer.innerHTML = conversations.map(conv => {
+        const firstMessage = conv.firstMessage ? conv.firstMessage.content.substring(0, 100) + '...' : 'Sin mensajes';
+        const messageCount = conv.messageCount || 0;
+        const duration = conv.duration ? `${Math.round(conv.duration / 60)} min` : 'N/A';
+        const date = new Date(conv.createdAt).toLocaleString('es-MX', {
+            day: 'numeric',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        return `
+            <div class="conversation-item" onclick="viewConversationDetail('${clientId}', '${conv.sessionId}')">
+                <div class="conversation-header">
+                    <span class="conversation-date">${date}</span>
+                    <span class="conversation-stats">
+                        <span class="stat-badge">💬 ${messageCount}</span>
+                        <span class="stat-badge">⏱️ ${duration}</span>
+                    </span>
+                </div>
+                <div class="conversation-preview">
+                    <p class="preview-text">${firstMessage}</p>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// View conversation detail
+async function viewConversationDetail(clientId, sessionId) {
+    // Show conversation modal
+    openModal('conversationModal');
+    
+    // Show loading
+    document.getElementById('messagesLoading').style.display = 'flex';
+    document.getElementById('messagesList').style.display = 'none';
+    
+    try {
+        const conversation = await adminAPI.getConversation(`${clientId}/${sessionId}`);
+        
+        // Update conversation info
+        const infoContainer = document.getElementById('conversationInfo');
+        const startTime = new Date(conversation.createdAt).toLocaleString('es-MX');
+        const messageCount = conversation.messages ? conversation.messages.length : 0;
+        
+        infoContainer.innerHTML = `
+            <div class="info-row">
+                <span class="info-label">Sesión ID:</span>
+                <span class="info-value">${conversation.sessionId}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Inicio:</span>
+                <span class="info-value">${startTime}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Total de mensajes:</span>
+                <span class="info-value">${messageCount}</span>
+            </div>
+        `;
+        
+        // Render messages
+        if (conversation.messages && conversation.messages.length > 0) {
+            renderMessages(conversation.messages);
+            document.getElementById('messagesList').style.display = 'block';
+        }
+        
+        // Hide loading
+        document.getElementById('messagesLoading').style.display = 'none';
+        
+    } catch (error) {
+        console.error('Error loading conversation:', error);
+        adminUtils.showToast('Error al cargar conversación', 'error');
+        document.getElementById('messagesLoading').style.display = 'none';
+    }
+}
+
+// Render messages
+function renderMessages(messages) {
+    const messagesContainer = document.getElementById('messagesList');
+    
+    messagesContainer.innerHTML = messages.map(msg => {
+        const isUser = msg.role === 'user';
+        const time = new Date(msg.timestamp || msg.createdAt).toLocaleTimeString('es-MX', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        return `
+            <div class="message ${isUser ? 'message-user' : 'message-assistant'}">
+                <div class="message-header">
+                    <span class="message-role">${isUser ? '👤 Usuario' : '🤖 Asistente'}</span>
+                    <span class="message-time">${time}</span>
+                </div>
+                <div class="message-content">
+                    ${msg.content}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Export conversations
+async function exportConversations() {
+    if (!window.currentAnalyticsClientId) return;
+    
+    try {
+        const data = await adminAPI.exportData(window.currentAnalyticsClientId, 'json');
+        
+        // Create download
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `conversaciones-${window.currentAnalyticsClientId}-${Date.now()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        adminUtils.showToast('Conversaciones exportadas exitosamente', 'success');
+    } catch (error) {
+        console.error('Error exporting conversations:', error);
+        adminUtils.showToast('Error al exportar conversaciones', 'error');
+    }
 }
 
 // Keyboard shortcuts
