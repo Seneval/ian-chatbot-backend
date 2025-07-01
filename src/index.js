@@ -3,6 +3,19 @@ const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const Sentry = require('@sentry/node');
+
+// Initialize Sentry
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    integrations: [
+      new Sentry.Integrations.Http({ tracing: false }),
+      new Sentry.Integrations.Express({ app: express() }),
+    ],
+  });
+}
 
 // Import database connection
 const { connectDB } = require('./config/database');
@@ -13,6 +26,7 @@ const chatDemoRoutes = require('./api/chat-demo');
 const analyticsRoutes = require('./api/analytics');
 const authRoutes = require('./api/auth');
 const testRoutes = require('./api/test');
+const testSentryRoutes = require('./api/test-sentry');
 
 // Import middleware
 const { validateClient } = require('./middleware/auth');
@@ -85,6 +99,11 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// Sentry request handler must be the first middleware
+if (process.env.SENTRY_DSN) {
+  app.use(Sentry.Handlers.requestHandler());
+}
+
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
@@ -136,6 +155,7 @@ app.get('/api/health', (req, res) => {
 
 // Routes
 app.use('/api/test', testRoutes); // NO authentication required for testing
+app.use('/api/test-sentry', testSentryRoutes); // Sentry test routes
 app.use('/api/chat', validateClient, chatRoutes);
 app.use('/api/chat-demo', validateClient, chatDemoRoutes);
 app.use('/api/analytics', analyticsRoutes);
@@ -245,6 +265,11 @@ app.get('/test-chat', (req, res) => {
   
   res.send(html);
 });
+
+// Sentry error handler must be before any other error middleware
+if (process.env.SENTRY_DSN) {
+  app.use(Sentry.Handlers.errorHandler());
+}
 
 // Error handling middleware
 app.use((err, req, res, next) => {
