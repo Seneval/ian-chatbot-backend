@@ -1,21 +1,19 @@
+// Initialize Sentry FIRST for serverless
+const Sentry = require('@sentry/serverless');
+
+if (process.env.SENTRY_DSN) {
+  Sentry.AWSLambda.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: 0.1, // Capture 10% of transactions for performance monitoring
+  });
+}
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
-const Sentry = require('@sentry/node');
-
-// Initialize Sentry
-if (process.env.SENTRY_DSN) {
-  Sentry.init({
-    dsn: process.env.SENTRY_DSN,
-    environment: process.env.NODE_ENV || 'development',
-    integrations: [
-      new Sentry.Integrations.Http({ tracing: false }),
-      new Sentry.Integrations.Express(),
-    ],
-  });
-}
 
 // Import database connection
 const { connectDB } = require('./config/database');
@@ -99,10 +97,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// Sentry request handler must be the first middleware
-if (process.env.SENTRY_DSN) {
-  app.use(Sentry.Handlers.requestHandler());
-}
+// No need for request handler middleware in serverless - handled by wrapper
 
 // Rate limiting
 const limiter = rateLimit({
@@ -266,14 +261,18 @@ app.get('/test-chat', (req, res) => {
   res.send(html);
 });
 
-// Sentry error handler must be before any other error middleware
-if (process.env.SENTRY_DSN) {
-  app.use(Sentry.Handlers.errorHandler());
-}
+// Sentry error handler for serverless - already handled by wrapper
 
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
+  
+  // Capture error in Sentry for serverless
+  if (process.env.SENTRY_DSN) {
+    Sentry.captureException(err);
+    Sentry.flush(2000); // Wait 2 seconds for Sentry to send the error
+  }
+  
   res.status(500).json({ 
     error: 'Algo salió mal', 
     message: process.env.NODE_ENV === 'development' ? err.message : undefined 
@@ -285,10 +284,15 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Ruta no encontrada' });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor iAN Chatbot corriendo en puerto ${PORT}`);
-  console.log(`📊 Ambiente: ${process.env.NODE_ENV || 'development'}`);
-});
+// Start server (only in non-serverless environments)
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`🚀 Servidor iAN Chatbot corriendo en puerto ${PORT}`);
+    console.log(`📊 Ambiente: ${process.env.NODE_ENV || 'development'}`);
+  });
+}
 
-module.exports = app;
+// Export wrapped app for serverless
+module.exports = process.env.SENTRY_DSN ? 
+  Sentry.AWSLambda.wrapHandler(app) : 
+  app;
