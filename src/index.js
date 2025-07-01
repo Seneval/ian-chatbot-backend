@@ -12,7 +12,7 @@ if (process.env.SENTRY_DSN) {
     environment: process.env.NODE_ENV || 'development',
     integrations: [
       new Sentry.Integrations.Http({ tracing: false }),
-      new Sentry.Integrations.Express({ app: express() }),
+      new Sentry.Integrations.Express(),
     ],
   });
 }
