@@ -66,7 +66,7 @@ Client Widget → JWT_SECRET → Client Token → validateClient middleware
 ### API Routes Structure
 - `/api/auth/*` - No middleware for login, validateAdmin for client management
 - `/api/chat/*` - validateClient middleware, real OpenAI integration
-- `/api/analytics/*` - validateClient middleware, usage data
+- `/api/analytics/*` - validateAdmin middleware, usage data
 - `/api/test/*` - No authentication, debugging endpoints
 - `/widget.js` - Static file, embeddable chat interface
 
@@ -118,6 +118,13 @@ When `widgetTitle` or `widgetGreeting` changes, the token must be regenerated to
 ### Widget Integration
 Widget expects exact attribute names: `data-client-token`, `data-title`, `data-greeting`. The backend must generate these exactly.
 
+### Vercel Deployment Crashes
+Common causes and solutions:
+1. **Invalid package versions**: bcryptjs must be ^2.4.3 (not 3.0.2)
+2. **Runtime issues**: Use `@vercel/node@2.0.0` with full version number
+3. **Node version**: Keep at >=16.0.0 for Vercel compatibility
+4. **Export format**: Export Express app directly, not wrapped
+
 ## Version Control & Recovery
 
 **Current Stable Version**: `v2.0-stable` - MongoDB + Full personalization
@@ -164,3 +171,21 @@ git push origin vX.X-stable
 - Rate limiting is per-IP, not per-client
 - OpenAI threads are not reused between sessions
 - CLAUDE.md should always be in .gitignore
+
+## Multi-Tenant Architecture (In Progress)
+
+### Models Added
+- `Tenant` - Organization with subscription info
+- `User` - Tenant users with roles (owner, admin, member)
+- Added `tenantId` to Client, Session, Message models
+
+### Middleware Added
+- `validateTenant` - Validates tenant user tokens
+- `validateTenantOwner` - Owner-only operations
+- `validateSuperAdmin` - Platform administration
+
+### Endpoints Added
+- `POST /api/auth/register` - Create tenant + owner user
+- `POST /api/auth/login` - Tenant user login
+- `GET /api/auth/me` - Current user info
+- Tenant-scoped client management endpoints

@@ -19,7 +19,7 @@
     "node": ">=16.0.0"
   },
   "dependencies": {
-    "@sentry/serverless": "^7.120.3",
+    "@sentry/node": "^9.34.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",

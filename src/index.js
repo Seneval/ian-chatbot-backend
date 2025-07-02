@@ -1,13 +1,6 @@
-// Initialize Sentry FIRST for serverless
-const Sentry = require('@sentry/serverless');
-
-if (process.env.SENTRY_DSN) {
-  Sentry.AWSLambda.init({
-    dsn: process.env.SENTRY_DSN,
-    environment: process.env.NODE_ENV || 'development',
-    tracesSampleRate: 0.1, // Capture 10% of transactions for performance monitoring
-  });
-}
+// Initialize Sentry FIRST
+require('./instrument');
+const Sentry = require('@sentry/node');
 
 require('dotenv').config();
 const express = require('express');
@@ -261,17 +254,12 @@ app.get('/test-chat', (req, res) => {
   res.send(html);
 });
 
-// Sentry error handler for serverless - already handled by wrapper
+// Sentry error handler - MUST be before any other error middleware
+Sentry.setupExpressErrorHandler(app);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  
-  // Capture error in Sentry for serverless
-  if (process.env.SENTRY_DSN) {
-    Sentry.captureException(err);
-    Sentry.flush(2000); // Wait 2 seconds for Sentry to send the error
-  }
   
   res.status(500).json({ 
     error: 'Algo salió mal', 
