@@ -25,6 +25,15 @@ const { validateClient } = require('./middleware/auth');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy for Vercel deployment
+app.set('trust proxy', true);
+
+// Debug middleware for CORS
+app.use((req, res, next) => {
+  console.log(`CORS Request: ${req.method} ${req.path} from ${req.headers.origin}`);
+  next();
+});
+
 // Connect to MongoDB
 const initializeDatabase = async () => {
   try {
@@ -90,6 +99,9 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// Handle preflight requests
+app.options('*', cors(corsOptions));
+
 // No need for request handler middleware in serverless - handled by wrapper
 
 // Rate limiting
@@ -122,15 +134,20 @@ app.use(express.static(path.join(__dirname, '..')));
 // Serve admin static files
 app.use('/admin', express.static(path.join(__dirname, 'admin')));
 
-// Serve demo.html at root
+// Serve API info at root
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'demo.html'));
+  res.json({
+    name: 'iAN Chatbot Backend API',
+    version: '2.0',
+    status: 'operational',
+    endpoints: {
+      health: '/api/health',
+      admin: '/admin',
+      docs: 'https://github.com/Seneval/ian-chatbot-backend'
+    }
+  });
 });
 
-// Serve test-assistant.html
-app.get('/test-assistant', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'test-assistant.html'));
-});
 
 // Health check
 app.get('/api/health', (req, res) => {
