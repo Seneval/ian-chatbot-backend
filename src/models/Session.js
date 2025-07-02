@@ -7,6 +7,11 @@ const sessionSchema = new mongoose.Schema({
     unique: true,
     index: true 
   },
+  tenantId: {
+    type: String,
+    required: true,
+    index: true
+  },
   clientId: { 
     type: String, 
     required: true, 
@@ -43,6 +48,9 @@ const sessionSchema = new mongoose.Schema({
 });
 
 // Compound indexes for common queries
+sessionSchema.index({ tenantId: 1, clientId: 1, createdAt: -1 });
+sessionSchema.index({ tenantId: 1, clientId: 1, isActive: 1 });
+sessionSchema.index({ tenantId: 1, createdAt: -1 });
 sessionSchema.index({ clientId: 1, createdAt: -1 });
 sessionSchema.index({ clientId: 1, isActive: 1 });
 
@@ -61,6 +69,17 @@ sessionSchema.methods.endSession = function() {
 // Static methods
 sessionSchema.statics.findByClient = function(clientId, options = {}) {
   const query = { clientId };
+  if (options.active !== undefined) {
+    query.isActive = options.active;
+  }
+  if (options.tenantId) {
+    query.tenantId = options.tenantId;
+  }
+  return this.find(query).sort({ createdAt: -1 });
+};
+
+sessionSchema.statics.findByTenant = function(tenantId, options = {}) {
+  const query = { tenantId };
   if (options.active !== undefined) {
     query.isActive = options.active;
   }

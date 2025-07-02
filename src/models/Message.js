@@ -6,6 +6,11 @@ const messageSchema = new mongoose.Schema({
     required: true, 
     index: true 
   },
+  tenantId: {
+    type: String,
+    required: true,
+    index: true
+  },
   clientId: { 
     type: String, 
     required: true, 
@@ -40,6 +45,10 @@ const messageSchema = new mongoose.Schema({
 });
 
 // Compound indexes for common queries
+messageSchema.index({ tenantId: 1, sessionId: 1, timestamp: 1 });
+messageSchema.index({ tenantId: 1, clientId: 1, timestamp: -1 });
+messageSchema.index({ tenantId: 1, clientId: 1, role: 1 });
+messageSchema.index({ tenantId: 1, timestamp: -1 });
 messageSchema.index({ sessionId: 1, timestamp: 1 });
 messageSchema.index({ clientId: 1, timestamp: -1 });
 messageSchema.index({ clientId: 1, role: 1 });
@@ -61,6 +70,28 @@ messageSchema.statics.findBySession = function(sessionId, options = {}) {
 
 messageSchema.statics.findByClient = function(clientId, options = {}) {
   const query = { clientId };
+  
+  if (options.tenantId) {
+    query.tenantId = options.tenantId;
+  }
+  
+  if (options.startDate || options.endDate) {
+    query.timestamp = {};
+    if (options.startDate) query.timestamp.$gte = options.startDate;
+    if (options.endDate) query.timestamp.$lte = options.endDate;
+  }
+  
+  let findQuery = this.find(query);
+  
+  if (options.limit) {
+    findQuery = findQuery.limit(options.limit);
+  }
+  
+  return findQuery.sort({ timestamp: -1 });
+};
+
+messageSchema.statics.findByTenant = function(tenantId, options = {}) {
+  const query = { tenantId };
   
   if (options.startDate || options.endDate) {
     query.timestamp = {};

@@ -8,6 +8,11 @@ const clientSchema = new mongoose.Schema({
     unique: true,
     index: true 
   },
+  tenantId: {
+    type: String,
+    required: true,
+    index: true
+  },
   businessName: { 
     type: String, 
     required: true,
@@ -101,6 +106,10 @@ const clientSchema = new mongoose.Schema({
 });
 
 // Indexes for better query performance
+clientSchema.index({ tenantId: 1, email: 1 });
+clientSchema.index({ tenantId: 1, clientId: 1 });
+clientSchema.index({ tenantId: 1, isActive: 1 });
+clientSchema.index({ tenantId: 1, createdAt: -1 });
 clientSchema.index({ email: 1 });
 clientSchema.index({ assistantId: 1 });
 clientSchema.index({ isActive: 1 });
@@ -154,6 +163,10 @@ clientSchema.methods.incrementSessionCount = function() {
 // Static methods
 clientSchema.statics.findActive = function() {
   return this.find({ isActive: true });
+};
+
+clientSchema.statics.findByTenant = function(tenantId) {
+  return this.find({ tenantId, isActive: true }).sort({ createdAt: -1 });
 };
 
 clientSchema.statics.findByToken = function(token) {

@@ -2,21 +2,35 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Current Status
+
+- **Production URL**: https://ian-chatbot-backend-h6zr.vercel.app
+- **Admin Dashboard**: https://admin.inteligenciaartificialparanegocios.com
+- **Sentry Project**: https://ian-hh.sentry.io (project: ian-chatbot-backend)
+- **MongoDB**: Connected with Atlas cluster (IP whitelist required)
+- **Widget**: Serving from `/widget.js` with personalization support
+
 ## Commands
 
 ### Development
 - **Run development server**: `npm run dev` - Starts server with nodemon on port 3000 (auto-reloads on changes)
 - **Start production server**: `npm start` - Runs server without auto-reload
 - **Install dependencies**: `npm install` - Installs all packages including mongoose for MongoDB
+- **Clean install**: `rm -rf node_modules package-lock.json && npm install` - Resolves dependency issues
 
 ### Deployment
 - **Deploy to Vercel**: `vercel` - Deploys to production (auto-deploys on git push to main)
 - **Preview deployment**: Push to any branch creates preview URL
+- **Check deployment**: https://ian-chatbot-backend-h6zr.vercel.app/api/health
 
 ### Testing
 - **Manual API testing**: Use `/api/test/*` endpoints (no auth required)
 - **Test OpenAI assistant**: `GET /api/test/assistant/:assistantId`
 - **Full chat flow test**: `POST /api/test/full-test`
+- **Test Sentry integration**: 
+  - Status: `GET /api/test-sentry/status`
+  - Trigger error: `GET /api/test-sentry/error`
+  - Custom error: `GET /api/test-sentry/custom-error`
 
 ## Multi-Agent Architecture
 
@@ -50,6 +64,24 @@ When the frontend needs changes:
 Frontend Dashboard → API Endpoints → MongoDB/In-Memory Storage
          ↓                  ↓
    Widget Embed ← Widget.js ← OpenAI Assistant
+```
+
+### Project Structure
+```
+/
+├── api/
+│   └── index.js          # Vercel serverless entry point
+├── src/
+│   ├── index.js          # Express app configuration
+│   ├── instrument.js     # Sentry initialization
+│   ├── api/              # Route handlers
+│   ├── models/           # MongoDB/Mongoose models
+│   ├── middleware/       # Auth middleware
+│   ├── config/           # Database config
+│   └── admin/            # Admin dashboard static files
+├── public/
+│   └── widget.js         # Embeddable chat widget
+└── vercel.json           # Vercel configuration
 ```
 
 ### Database Strategy
@@ -103,9 +135,10 @@ Required:
 - `ADMIN_JWT_SECRET` - Signs admin tokens
 
 Optional but recommended:
-- `MONGODB_URI` - Enables persistence
-- `ALLOWED_ORIGINS` - Additional CORS domains
+- `MONGODB_URI` - Enables persistence (must include database name: `/ian-chatbot`)
+- `ALLOWED_ORIGINS` - Additional CORS domains (comma-separated)
 - `WIDGET_URL` - Override default widget URL
+- `SENTRY_DSN` - Error tracking (get from https://ian-hh.sentry.io)
 
 ## Common Issues & Solutions
 
@@ -118,20 +151,33 @@ When `widgetTitle` or `widgetGreeting` changes, the token must be regenerated to
 ### Widget Integration
 Widget expects exact attribute names: `data-client-token`, `data-title`, `data-greeting`. The backend must generate these exactly.
 
-### Vercel Deployment Crashes
+### Vercel Deployment Issues
 Common causes and solutions:
-1. **Invalid package versions**: bcryptjs must be ^2.4.3 (not 3.0.2)
-2. **Runtime issues**: Use `@vercel/node@2.0.0` with full version number
-3. **Node version**: Keep at >=16.0.0 for Vercel compatibility
-4. **Export format**: Export Express app directly, not wrapped
+1. **Invalid package versions**: 
+   - bcryptjs must be ^2.4.3 (not 3.0.0+)
+   - Express must be v4 (not v5 beta)
+2. **Runtime configuration**: 
+   - Use `@vercel/node@2.0.0` in vercel.json
+   - Node version: >=16.0.0
+3. **Serverless setup**:
+   - App is wrapped via `/api/index.js` entry point
+   - Sentry initialized in `/src/instrument.js` before app loads
+   - Server doesn't listen in production (check for VERCEL env)
+4. **Missing files**: Ensure all static files are included in deployment
 
 ## Version Control & Recovery
 
-**Current Stable Version**: `v2.0-stable` - MongoDB + Full personalization
+**Current Stable Version**: `v4.1-stable` - Full stack with Sentry integration
+
+### Available Stable Versions
+- `v4.1-stable` - Current: Sentry + Admin subdomain + Analytics
+- `v3.1-stable` - Admin subdomain + Analytics  
+- `v2.0-stable` - MongoDB + Widget personalization
+- `v1.0-stable` - Basic functionality
 
 ### Emergency Recovery
 ```bash
-git checkout v2.0-stable
+git checkout v4.1-stable
 git push --force origin main
 ```
 
@@ -150,9 +196,27 @@ git push origin vX.X-stable
 
 ## Recent Architecture Decisions
 
+### Sentry Integration (Jan 2025)
+- Added `@sentry/node` for error tracking
+- Separate `instrument.js` for early initialization in serverless
+- Custom test endpoints in `/api/test-sentry/*`
+- Captures console errors, unhandled rejections, and custom contexts
+
+### Admin Subdomain (Jan 2025)
+- Configured admin.inteligenciaartificialparanegocios.com
+- Auto-redirect from subdomain root to /admin
+- Added to CORS allowed origins
+- DNS: CNAME to cname.vercel-dns.com
+
+### Analytics Implementation (Dec 2024)
+- Complete conversation log viewing system
+- Modal-based UI for viewing session details
+- Admin-only access via validateAdmin middleware
+
 ### MongoDB Integration (Dec 2024)
 - Added mongoose models while maintaining in-memory compatibility
 - All routes support dual storage to ensure zero downtime during migration
+- Must whitelist IPs in MongoDB Atlas (0.0.0.0/0 for Vercel)
 
 ### Widget Personalization (Dec 2024)
 - Added `widgetTitle` and `widgetGreeting` to Client model
@@ -163,6 +227,17 @@ git push origin vX.X-stable
 - Added GitHub Pages support for testing
 - Implemented environment variable for dynamic origins
 - Maintained hardcoded list for critical domains
+- Fixed callback handling for proper CORS rejection
+
+## Known Issues (from Sentry)
+
+1. **Trust Proxy Warning** (IAN-CHATBOT-BACKEND-6):
+   - Rate limiting bypass vulnerability due to `trust proxy: true`
+   - Need to configure proper proxy trust settings for Vercel
+
+2. **Missing demo.html** (IAN-CHATBOT-BACKEND-3):
+   - Root route tries to serve non-existent demo.html
+   - Need to add file or change default route
 
 ## Important Notes
 
@@ -171,6 +246,7 @@ git push origin vX.X-stable
 - Rate limiting is per-IP, not per-client
 - OpenAI threads are not reused between sessions
 - CLAUDE.md should always be in .gitignore
+- Never include Co-Authored-By Claude in git commits
 
 ## Multi-Tenant Architecture (In Progress)
 

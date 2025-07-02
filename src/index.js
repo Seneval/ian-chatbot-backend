@@ -16,6 +16,7 @@ const chatRoutes = require('./api/chat');
 const chatDemoRoutes = require('./api/chat-demo');
 const analyticsRoutes = require('./api/analytics');
 const authRoutes = require('./api/auth');
+const tenantAuthRoutes = require('./api/tenant-auth');
 const testRoutes = require('./api/test');
 const testSentryRoutes = require('./api/test-sentry');
 
@@ -134,8 +135,16 @@ app.use(express.static(path.join(__dirname, '..')));
 // Serve admin static files
 app.use('/admin', express.static(path.join(__dirname, 'admin')));
 
-// Serve API info at root
+// Serve homepage static files
+app.use('/homepage', express.static(path.join(__dirname, '../public/homepage')));
+
+// Serve marketing homepage at root
 app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/homepage/index.html'));
+});
+
+// API info endpoint
+app.get('/api', (req, res) => {
   res.json({
     name: 'iAN Chatbot Backend API',
     version: '2.0',
@@ -161,10 +170,11 @@ app.get('/api/health', (req, res) => {
 // Routes
 app.use('/api/test', testRoutes); // NO authentication required for testing
 app.use('/api/test-sentry', testSentryRoutes); // Sentry test routes
+app.use('/api/tenant', tenantAuthRoutes); // Multi-tenant authentication
 app.use('/api/chat', validateClient, chatRoutes);
 app.use('/api/chat-demo', validateClient, chatDemoRoutes);
 app.use('/api/analytics', analyticsRoutes);
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authRoutes); // Legacy admin auth
 
 // Widget serving
 app.get('/widget.js', (req, res) => {
