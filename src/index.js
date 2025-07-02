@@ -292,7 +292,5 @@ if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
   });
 }
 
-// Export wrapped app for serverless
-module.exports = process.env.SENTRY_DSN ? 
-  Sentry.AWSLambda.wrapHandler(app) : 
-  app;
+// Export app for serverless
+module.exports = app;
