@@ -106,6 +106,7 @@ router.post('/register', async (req, res) => {
     const ownerUser = new User({
       tenantId: tenant.tenantId,
       email: email,
+      password: password, // Required field
       name: contactName,
       role: 'owner',
       supabaseUserId: supabaseUserId

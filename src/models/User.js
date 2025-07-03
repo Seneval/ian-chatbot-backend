@@ -12,6 +12,11 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  supabaseUserId: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
   email: {
     type: String,
     required: true,
