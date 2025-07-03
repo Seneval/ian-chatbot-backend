@@ -3,6 +3,7 @@ const OpenAI = require('openai');
 const supabaseRoutes = require('./test/supabase');
 const modelsRoutes = require('./test/models');
 const authFlowRoutes = require('./test/auth-flow');
+const registrationRoutes = require('./test/registration');
 const router = express.Router();
 
 // Initialize OpenAI client
@@ -175,5 +176,6 @@ router.post('/full-test', async (req, res) => {
 router.use('/supabase', supabaseRoutes);
 router.use('/models', modelsRoutes);
 router.use('/auth-flow', authFlowRoutes);
+router.use('/registration', registrationRoutes);
 
 module.exports = router;
