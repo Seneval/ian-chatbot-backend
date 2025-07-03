@@ -42,52 +42,12 @@ router.post('/register', async (req, res) => {
       });
     }
 
+    // Use legacy mode only for now (Supabase causing timeouts in serverless)
     let supabaseUserId = null;
     let authMethod = 'legacy';
     let sessionToken = null;
-
-    // Try Supabase registration first (with timeout protection)
-    if (isSupabaseAvailable()) {
-      try {
-        console.log('🔄 Attempting Supabase user creation...');
-        
-        // Set a timeout for Supabase calls
-        const supabasePromise = supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: undefined,
-            data: {
-              company_name: companyName,
-              contact_name: contactName
-            }
-          }
-        });
-
-        // Race against timeout
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Supabase timeout')), 8000);
-        });
-
-        const { data: signUpData, error: signUpError } = await Promise.race([
-          supabasePromise,
-          timeoutPromise
-        ]);
-
-        if (signUpError) {
-          console.log(`⚠️ Supabase signup failed: ${signUpError.message}`);
-          // Continue with legacy mode
-        } else if (signUpData.user) {
-          supabaseUserId = signUpData.user.id;
-          authMethod = 'supabase';
-          sessionToken = signUpData.session?.access_token;
-          console.log(`✅ Supabase user created: ${supabaseUserId}`);
-        }
-      } catch (supabaseError) {
-        console.log(`⚠️ Supabase registration failed: ${supabaseError.message}`);
-        // Continue with legacy mode
-      }
-    }
+    
+    console.log('🔄 Using legacy authentication mode (Supabase disabled for stability)');
 
     // Create tenant
     console.log('🏢 Creating tenant...');
