@@ -377,6 +377,33 @@
         const data = await response.json();
         removeTyping();
         addMessage('assistant', data.message);
+      } else if (response.status === 429) {
+        // Handle rate limiting with specific message
+        try {
+          const errorData = await response.json();
+          removeTyping();
+          
+          if (errorData.code === 'DAILY_LIMIT_EXCEEDED') {
+            let limitMessage = errorData.error;
+            
+            // Add upgrade info for free users
+            if (errorData.upgrade) {
+              limitMessage += `\n\n💡 Con el plan Premium tendrías:\n${errorData.upgrade.features.join('\n')}`;
+            }
+            
+            // Add reset time info
+            if (errorData.limits && errorData.limits.resetIn) {
+              limitMessage += `\n\n⏰ Tu límite se renueva en ${errorData.limits.resetIn} horas.`;
+            }
+            
+            addMessage('assistant', limitMessage);
+          } else {
+            addMessage('assistant', errorData.error || 'Has alcanzado el límite de mensajes por hoy.');
+          }
+        } catch (e) {
+          removeTyping();
+          addMessage('assistant', 'Has alcanzado el límite de mensajes por hoy. Intenta mañana o actualiza tu plan.');
+        }
       } else {
         removeTyping();
         addMessage('assistant', 'Lo siento, hubo un error. Por favor intenta de nuevo.');

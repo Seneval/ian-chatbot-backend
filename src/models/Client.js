@@ -171,11 +171,13 @@ clientSchema.methods.updateActivity = function() {
 
 clientSchema.methods.incrementMessageCount = function() {
   const now = new Date();
+  const monterreyTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Monterrey"}));
   const lastMonthReset = new Date(this.usage.lastMonthReset);
   const lastDayReset = new Date(this.usage.lastDayReset);
+  const lastDayResetMonterrey = new Date(lastDayReset.toLocaleString("en-US", {timeZone: "America/Monterrey"}));
   
-  // Check if we need to reset daily counters
-  if (now.toDateString() !== lastDayReset.toDateString()) {
+  // Check if we need to reset daily counters (using Monterrey timezone)
+  if (monterreyTime.toDateString() !== lastDayResetMonterrey.toDateString()) {
     this.usage.currentDayMessages = 0;
     this.usage.lastDayReset = now;
   }
@@ -212,14 +214,17 @@ clientSchema.methods.incrementSessionCount = function() {
 };
 
 // Check if chatbot has exceeded limits
-clientSchema.methods.isWithinLimits = function() {
+clientSchema.methods.isWithinLimits = async function() {
   const now = new Date();
+  const monterreyTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Monterrey"}));
   const lastDayReset = new Date(this.usage.lastDayReset);
+  const lastDayResetMonterrey = new Date(lastDayReset.toLocaleString("en-US", {timeZone: "America/Monterrey"}));
   
-  // Reset daily counter if needed
-  if (now.toDateString() !== lastDayReset.toDateString()) {
+  // Reset daily counter if needed (check if it's a new day in Monterrey timezone)
+  if (monterreyTime.toDateString() !== lastDayResetMonterrey.toDateString()) {
     this.usage.currentDayMessages = 0;
     this.usage.lastDayReset = now;
+    await this.save(); // Persist the reset to database
   }
   
   // Check daily limit

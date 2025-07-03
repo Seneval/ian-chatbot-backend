@@ -172,6 +172,15 @@ router.post('/client', validateAdmin, async (req, res) => {
       limits: {
         messagesPerDay: plan === 'paid' ? 1000 : 10,
         messagesPerMonth: plan === 'paid' ? 30000 : 300
+      },
+      usage: {
+        totalMessages: 0,
+        totalSessions: 0,
+        currentDayMessages: 0,
+        currentMonthMessages: 0,
+        currentMonthSessions: 0,
+        lastDayReset: new Date(),
+        lastMonthReset: new Date()
       }
     };
     

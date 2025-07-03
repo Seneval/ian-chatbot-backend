@@ -92,7 +92,15 @@ const checkUsageLimit = async (req, res, next) => {
       const isWithinLimits = await client.isWithinLimits();
       
       if (!isWithinLimits) {
-        const remainingHours = 24 - new Date().getHours();
+        // Calculate time until midnight in Monterrey timezone
+        const now = new Date();
+        const monterreyTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Monterrey"}));
+        const midnight = new Date(monterreyTime);
+        midnight.setDate(midnight.getDate() + 1);
+        midnight.setHours(0, 0, 0, 0);
+        
+        const remainingMs = midnight - monterreyTime;
+        const remainingHours = Math.ceil(remainingMs / (1000 * 60 * 60));
         const isPaid = client.plan === 'paid';
         
         return res.status(429).json({ 
