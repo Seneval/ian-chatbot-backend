@@ -5,13 +5,11 @@ const subscriptionSchema = new mongoose.Schema({
   subscriptionId: {
     type: String,
     default: uuidv4,
-    unique: true,
-    index: true
+    unique: true
   },
   tenantId: {
     type: String,
-    required: true,
-    index: true
+    required: true
   },
   
   // Stripe integration
@@ -153,9 +151,8 @@ const subscriptionSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Indexes
+// Indexes (stripeSubscriptionId already unique in schema)
 subscriptionSchema.index({ tenantId: 1 });
-subscriptionSchema.index({ stripeSubscriptionId: 1 }, { unique: true, sparse: true });
 subscriptionSchema.index({ stripeCustomerId: 1 });
 subscriptionSchema.index({ status: 1 });
 subscriptionSchema.index({ currentPeriodEnd: 1 });

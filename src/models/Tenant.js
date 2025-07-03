@@ -5,8 +5,7 @@ const tenantSchema = new mongoose.Schema({
   tenantId: {
     type: String,
     default: uuidv4,
-    unique: true,
-    index: true
+    unique: true
   },
   name: {
     type: String,
@@ -173,9 +172,7 @@ const tenantSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Indexes for performance
-tenantSchema.index({ slug: 1 }, { unique: true });
-tenantSchema.index({ email: 1 }, { unique: true });
+// Indexes for performance (slug and email already unique in schema)
 tenantSchema.index({ 'subscription.status': 1 });
 tenantSchema.index({ isActive: 1 });
 tenantSchema.index({ createdAt: -1 });

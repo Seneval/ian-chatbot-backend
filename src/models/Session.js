@@ -4,18 +4,15 @@ const sessionSchema = new mongoose.Schema({
   sessionId: { 
     type: String, 
     required: true, 
-    unique: true,
-    index: true 
+    unique: true
   },
   tenantId: {
     type: String,
-    required: true,
-    index: true
+    required: true
   },
   clientId: { 
     type: String, 
-    required: true, 
-    index: true 
+    required: true
   },
   threadId: { 
     type: String, 
@@ -23,8 +20,7 @@ const sessionSchema = new mongoose.Schema({
   },
   createdAt: { 
     type: Date, 
-    default: Date.now,
-    index: true 
+    default: Date.now
   },
   lastMessageAt: { 
     type: Date, 

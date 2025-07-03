@@ -6,13 +6,11 @@ const userSchema = new mongoose.Schema({
   userId: {
     type: String,
     default: uuidv4,
-    unique: true,
-    index: true
+    unique: true
   },
   tenantId: {
     type: String,
-    required: true,
-    index: true
+    required: true
   },
   email: {
     type: String,
@@ -104,10 +102,9 @@ const userSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Compound indexes
+// Compound indexes (email already unique in schema)
 userSchema.index({ tenantId: 1, email: 1 });
 userSchema.index({ tenantId: 1, role: 1 });
-userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ emailVerificationToken: 1 });
 userSchema.index({ passwordResetToken: 1 });
 

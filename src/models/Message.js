@@ -3,18 +3,15 @@ const mongoose = require('mongoose');
 const messageSchema = new mongoose.Schema({
   sessionId: { 
     type: String, 
-    required: true, 
-    index: true 
+    required: true
   },
   tenantId: {
     type: String,
-    required: true,
-    index: true
+    required: true
   },
   clientId: { 
     type: String, 
-    required: true, 
-    index: true 
+    required: true
   },
   messageId: {
     type: String,
@@ -32,8 +29,7 @@ const messageSchema = new mongoose.Schema({
   },
   timestamp: { 
     type: Date, 
-    default: Date.now,
-    index: true 
+    default: Date.now
   },
   metadata: {
     tokensUsed: Number,

@@ -5,13 +5,11 @@ const clientSchema = new mongoose.Schema({
   clientId: { 
     type: String, 
     default: uuidv4, 
-    unique: true,
-    index: true 
+    unique: true
   },
   tenantId: {
     type: String,
-    required: true,
-    index: true
+    required: true
   },
   businessName: { 
     type: String, 
