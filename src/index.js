@@ -26,8 +26,14 @@ const { validateClient } = require('./middleware/auth');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Trust proxy for Vercel deployment
-app.set('trust proxy', true);
+// Trust proxy for Vercel deployment (secure configuration)
+if (process.env.VERCEL) {
+  // Trust Vercel's proxy in production
+  app.set('trust proxy', 1);
+} else {
+  // Don't trust proxy in development for security
+  app.set('trust proxy', false);
+}
 
 // Debug middleware for CORS
 app.use((req, res, next) => {

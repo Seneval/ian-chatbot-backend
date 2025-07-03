@@ -56,23 +56,36 @@ router.post('/test-signup', async (req, res) => {
 
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: testEmail,
-      password: testPassword
+      password: testPassword,
+      options: {
+        emailRedirectTo: undefined // Don't require email confirmation for tests
+      }
     });
 
     if (signUpError) {
+      // Log the specific error for debugging
+      console.error('Supabase signup error:', signUpError);
+      
       Sentry.captureException(signUpError, {
         extra: {
           endpoint: '/api/test/supabase/test-signup',
-          testEmail
+          testEmail,
+          errorCode: signUpError.status,
+          errorMessage: signUpError.message
         }
       });
       
       return res.status(400).json({
         success: false,
         error: signUpError.message,
-        testEmail
+        code: signUpError.status,
+        testEmail,
+        note: 'Email confirmation may be required in Supabase settings'
       });
     }
+
+    // Check if user was created but needs confirmation
+    const needsConfirmation = signUpData.user && !signUpData.session;
 
     res.json({
       success: true,
@@ -80,18 +93,27 @@ router.post('/test-signup', async (req, res) => {
       session: signUpData.session,
       testEmail,
       testPassword,
-      message: 'Test user created successfully'
+      needsConfirmation,
+      message: needsConfirmation 
+        ? 'User created but email confirmation required' 
+        : 'Test user created successfully'
     });
   } catch (err) {
+    console.error('Supabase test error:', err);
+    
     Sentry.captureException(err, {
       extra: {
-        endpoint: '/api/test/supabase/test-signup'
+        endpoint: '/api/test/supabase/test-signup',
+        errorName: err.name,
+        errorMessage: err.message
       }
     });
     
     res.status(500).json({
       success: false,
-      error: err.message
+      error: err.message,
+      name: err.name,
+      note: 'Check Supabase configuration and network connectivity'
     });
   }
 });
