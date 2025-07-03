@@ -183,6 +183,16 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/homepage/index.html'));
 });
 
+// Serve registration page
+app.get('/register', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin/register.html'));
+});
+
+// Alternative path for registration  
+app.get('/admin/register', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin/register.html'));
+});
+
 // API info endpoint
 app.get('/api', (req, res) => {
   res.json({

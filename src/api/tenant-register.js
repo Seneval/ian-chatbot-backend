@@ -54,26 +54,38 @@ router.post('/register', async (req, res) => {
 
     // Create tenant
     console.log('🏢 Creating tenant...');
-    const tenant = new Tenant({
+    const tenantData = {
       name: companyName,
       slug: tenantSlug,
-      email: email,
-      supabaseUserId: supabaseUserId
-    });
+      email: email
+    };
+    
+    // Only set supabaseUserId if it's not null (for legacy registrations)
+    if (supabaseUserId) {
+      tenantData.supabaseUserId = supabaseUserId;
+    }
+    
+    const tenant = new Tenant(tenantData);
 
     await tenant.save();
     console.log(`✅ Tenant created: ${tenant.tenantId}`);
 
     // Create owner user
     console.log('👤 Creating owner user...');
-    const ownerUser = new User({
+    const userData = {
       tenantId: tenant.tenantId,
       email: email,
       password: password, // Required field
       name: contactName,
-      role: 'owner',
-      supabaseUserId: supabaseUserId
-    });
+      role: 'owner'
+    };
+    
+    // Only set supabaseUserId if it's not null
+    if (supabaseUserId) {
+      userData.supabaseUserId = supabaseUserId;
+    }
+    
+    const ownerUser = new User(userData);
 
     await ownerUser.save();
     console.log(`✅ Owner user created: ${ownerUser.userId}`);
