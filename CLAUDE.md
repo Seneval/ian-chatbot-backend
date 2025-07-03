@@ -7,8 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Production URL**: https://ian-chatbot-backend-h6zr.vercel.app
 - **Admin Dashboard**: https://admin.inteligenciaartificialparanegocios.com
 - **Sentry Project**: https://ian-hh.sentry.io (project: ian-chatbot-backend)
-- **MongoDB**: Connected with Atlas cluster (IP whitelist required)
+- **MongoDB**: Connected with Atlas cluster (IP whitelist required: 0.0.0.0/0 for Vercel)
 - **Widget**: Serving from `/widget.js` with personalization support
+- **Pricing Model**: Per-chatbot ($200 MXN/month per premium chatbot)
 
 ## Commands
 
@@ -17,9 +18,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Start production server**: `npm start` - Runs server without auto-reload
 - **Install dependencies**: `npm install` - Installs all packages including mongoose for MongoDB
 - **Clean install**: `rm -rf node_modules package-lock.json && npm install` - Resolves dependency issues
+- **Kill server**: `pkill -f "node.*ian-chatbot"` - Stops any running Node.js server
 
 ### Deployment
-- **Deploy to Vercel**: `vercel` - Deploys to production (auto-deploys on git push to main)
+- **Deploy to Vercel**: `git push origin main` - Auto-deploys on push to main
+- **Manual deploy**: `vercel` - Deploys to production manually
 - **Preview deployment**: Push to any branch creates preview URL
 - **Check deployment**: https://ian-chatbot-backend-h6zr.vercel.app/api/health
 
@@ -80,6 +83,7 @@ Frontend Dashboard → API Endpoints → MongoDB/In-Memory Storage
 │   ├── config/           # Database config
 │   └── admin/            # Admin dashboard static files
 ├── public/
+│   ├── homepage/         # Landing page
 │   └── widget.js         # Embeddable chat widget
 └── vercel.json           # Vercel configuration
 ```
@@ -93,6 +97,7 @@ Frontend Dashboard → API Endpoints → MongoDB/In-Memory Storage
 ```
 Admin Login → ADMIN_JWT_SECRET → Admin Token → validateAdmin middleware
 Client Widget → JWT_SECRET → Client Token → validateClient middleware
+Tenant User → JWT_SECRET → Tenant Token → validateTenant middleware
 ```
 
 ### API Routes Structure
@@ -100,16 +105,28 @@ Client Widget → JWT_SECRET → Client Token → validateClient middleware
 - `/api/chat/*` - validateClient middleware, real OpenAI integration
 - `/api/analytics/*` - validateAdmin middleware, usage data
 - `/api/test/*` - No authentication, debugging endpoints
+- `/api/test-sentry/*` - Sentry error testing endpoints
+- `/api/register/*` - Tenant registration (no auth required)
+- `/api/tenant/*` - Multi-tenant authentication
 - `/widget.js` - Static file, embeddable chat interface
 
 ### MongoDB Models Relationships
 ```
-Client (1) → (∞) Session → (∞) Message
+Tenant (1) → (∞) User
    ↓
-Stores: assistantId, widgetTitle, widgetGreeting, token
+   (1) → (∞) Client (Chatbot) → (∞) Session → (∞) Message
+                ↓
+         Stores: plan (free/paid), pricing info, usage limits
 ```
 
 ## Critical Implementation Details
+
+### Per-Chatbot Pricing Model (Jan 2025)
+- **Free Plan**: 10 calls/day per chatbot, unlimited chatbots
+- **Premium Plan**: $200 MXN/month per chatbot, 1,000 calls/day
+- Client model updated with pricing structure and usage tracking
+- Middleware checks per-chatbot limits before processing messages
+- Usage tracked at chatbot level, not tenant level
 
 ### Widget Personalization Flow
 1. Admin creates client with `widgetTitle` and `widgetGreeting`
@@ -127,6 +144,7 @@ Stores: assistantId, widgetTitle, widgetGreeting, token
 2. Returns `sessionId` linked to `threadId`
 3. Messages sent to `POST /api/chat/message` with `sessionId`
 4. OpenAI maintains conversation context via threads
+5. Daily usage limits enforced per chatbot
 
 ### Environment Variables
 Required:
@@ -142,6 +160,20 @@ Optional but recommended:
 
 ## Common Issues & Solutions
 
+### Sentry Initialization Bug (Fixed Jan 2025)
+**Problem**: Sentry wasn't initializing because `require('dotenv').config()` was called AFTER `require('./instrument')`.
+
+**Solution**: In `src/index.js`, moved dotenv to the first line:
+```javascript
+// Load environment variables FIRST
+require('dotenv').config();
+
+// Initialize Sentry AFTER environment variables are loaded
+require('./instrument');
+```
+
+**Key Learning**: Environment variables must be loaded before any module that depends on them.
+
 ### Route Naming Conflicts
 Frontend expects singular routes (`/client`, `/session`, `/message`) while some MongoDB examples use plural. Always use singular to match frontend expectations.
 
@@ -150,6 +182,9 @@ When `widgetTitle` or `widgetGreeting` changes, the token must be regenerated to
 
 ### Widget Integration
 Widget expects exact attribute names: `data-client-token`, `data-title`, `data-greeting`. The backend must generate these exactly.
+
+### Dashboard Form Errors
+The dashboard expects these exact field IDs: `businessName`, `contactEmail`, `plan`, `assistantId`. Removed `monthlyMessageLimit` field after switching to per-chatbot pricing.
 
 ### Vercel Deployment Issues
 Common causes and solutions:
@@ -167,17 +202,18 @@ Common causes and solutions:
 
 ## Version Control & Recovery
 
-**Current Stable Version**: `v4.1-stable` - Full stack with Sentry integration
+**Current Stable Version**: `v5.0-stable` - Per-chatbot pricing model with Sentry fix
 
 ### Available Stable Versions
-- `v4.1-stable` - Current: Sentry + Admin subdomain + Analytics
+- `v5.0-stable` - Current: Per-chatbot pricing + Sentry fix
+- `v4.1-stable` - Sentry + Admin subdomain + Analytics
 - `v3.1-stable` - Admin subdomain + Analytics  
 - `v2.0-stable` - MongoDB + Widget personalization
 - `v1.0-stable` - Basic functionality
 
 ### Emergency Recovery
 ```bash
-git checkout v4.1-stable
+git checkout v5.0-stable
 git push --force origin main
 ```
 
@@ -196,11 +232,19 @@ git push origin vX.X-stable
 
 ## Recent Architecture Decisions
 
+### Per-Chatbot Pricing Model (Jan 2025)
+- Switched from tenant-based to per-chatbot pricing
+- Updated Client model with `plan` (free/paid) and `pricing` object
+- Added daily/monthly usage tracking per chatbot
+- Modified `checkUsageLimit` middleware to check chatbot limits
+- Updated landing page and dashboard to reflect new pricing
+
 ### Sentry Integration (Jan 2025)
 - Added `@sentry/node` for error tracking
 - Separate `instrument.js` for early initialization in serverless
 - Custom test endpoints in `/api/test-sentry/*`
 - Captures console errors, unhandled rejections, and custom contexts
+- **Critical**: Fixed initialization order bug by loading dotenv first
 
 ### Admin Subdomain (Jan 2025)
 - Configured admin.inteligenciaartificialparanegocios.com
@@ -239,6 +283,11 @@ git push origin vX.X-stable
    - Root route tries to serve non-existent demo.html
    - Need to add file or change default route
 
+3. **Punycode Deprecation Warning**:
+   - Node.js deprecation warning from dependencies
+   - Harmless but shows in logs/Sentry
+   - Will be fixed when packages update
+
 ## Important Notes
 
 - Always maintain backward compatibility with existing widgets
@@ -247,8 +296,9 @@ git push origin vX.X-stable
 - OpenAI threads are not reused between sessions
 - CLAUDE.md should always be in .gitignore
 - Never include Co-Authored-By Claude in git commits
+- When creating chatbots locally, they won't work with production widget
 
-## Multi-Tenant Architecture (In Progress)
+## Multi-Tenant Architecture
 
 ### Models Added
 - `Tenant` - Organization with subscription info
@@ -261,7 +311,13 @@ git push origin vX.X-stable
 - `validateSuperAdmin` - Platform administration
 
 ### Endpoints Added
-- `POST /api/auth/register` - Create tenant + owner user
-- `POST /api/auth/login` - Tenant user login
-- `GET /api/auth/me` - Current user info
+- `POST /api/register/register` - Create tenant + owner user
+- `POST /api/tenant/login` - Tenant user login
+- `GET /api/tenant/me` - Current user info
 - Tenant-scoped client management endpoints
+
+### Current Tenant Plans (Not active - using per-chatbot pricing)
+- **Trial**: 5 clients, 1 user, 1,000 messages/month
+- **Starter**: 50 clients, 3 users, 100,000 messages/month
+- **Pro**: 200 clients, 10 users, 500,000 messages/month
+- **Enterprise**: 1,000 clients, 50 users, 2,000,000 messages/month

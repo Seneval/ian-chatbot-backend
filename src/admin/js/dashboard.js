@@ -123,11 +123,18 @@ function renderClients(clientsList) {
     const tableBody = document.getElementById('clientsTableBody');
     
     tableBody.innerHTML = clientsList.map(client => {
-        const plan = client.plan || 'basic';
+        const plan = client.plan || 'free';
         const status = client.status || 'active';
         const isActive = status === 'active';
-        const messageUsage = client.currentMonthMessages || 0;
-        const messageLimit = client.monthlyMessageLimit || 1000;
+        
+        // Handle per-chatbot pricing model
+        const isFree = plan === 'free';
+        const messageUsage = isFree 
+            ? (client.usage?.currentDayMessages || 0)
+            : (client.usage?.currentMonthMessages || 0);
+        const messageLimit = isFree 
+            ? (client.limits?.messagesPerDay || 10)
+            : (client.limits?.messagesPerMonth || 30000);
         const usagePercent = (messageUsage / messageLimit) * 100;
         
         return `
@@ -145,6 +152,7 @@ function renderClients(clientsList) {
                 <td class="hide-mobile">
                     <div>
                         ${adminUtils.formatNumber(messageUsage)} / ${adminUtils.formatNumber(messageLimit)}
+                        <small style="color: var(--gray-500);">${isFree ? 'hoy' : 'este mes'}</small>
                         <div class="progress-bar">
                             <div class="progress-fill" style="width: ${Math.min(usagePercent, 100)}%"></div>
                         </div>
@@ -191,8 +199,10 @@ function renderClients(clientsList) {
 // Get plan badge class
 function getPlanBadgeClass(plan) {
     switch (plan) {
-        case 'pro': return 'info';
-        case 'enterprise': return 'success';
+        case 'paid': return 'success';
+        case 'free': return 'secondary';
+        case 'pro': return 'info'; // Legacy support
+        case 'enterprise': return 'success'; // Legacy support
         default: return 'secondary';
     }
 }

@@ -463,7 +463,8 @@ a:hover {
     background: var(--white);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow);
-    overflow: hidden;
+    overflow: visible;
+    overflow-x: auto; /* Only hide horizontal overflow for table scrolling */
 }
 
 .data-table {
@@ -685,8 +686,9 @@ a:hover {
     box-shadow: var(--shadow-lg);
     min-width: 200px;
     display: none;
-    z-index: 100;
+    z-index: 1000; /* Higher z-index to appear above table */
     margin-top: 0.5rem;
+    border: 1px solid var(--gray-200);
 }
 
 .dropdown-menu.active {
