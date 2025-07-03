@@ -45,13 +45,21 @@ const validateAdmin = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET || 'admin-secret-change-this');
     
-    if (decoded.role !== 'admin') {
+    // Accept both admin and owner roles
+    if (decoded.role !== 'admin' && decoded.role !== 'owner') {
       return res.status(403).json({ 
         error: 'Acceso denegado' 
       });
     }
     
     req.admin = decoded;
+    
+    // Add tenant context for owners
+    if (decoded.role === 'owner' && decoded.tenantId) {
+      req.tenantId = decoded.tenantId;
+      console.log(`🏢 Owner access for tenant: ${decoded.tenantId}`);
+    }
+    
     next();
   } catch (error) {
     return res.status(401).json({ 

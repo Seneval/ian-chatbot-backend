@@ -152,6 +152,7 @@ router.post('/client', validateAdmin, async (req, res) => {
     const clientId = uuidv4();
     const clientData = {
       clientId,
+      tenantId: req.tenantId || req.body.tenantId, // Auto-assign tenant ID for owners
       businessName,
       email: contactEmail,
       contactPerson,
@@ -163,6 +164,13 @@ router.post('/client', validateAdmin, async (req, res) => {
       widgetTitle: widgetTitle || 'Asistente Virtual',
       widgetGreeting: widgetGreeting || '¡Hola! 👋 Soy tu asistente virtual. ¿En qué puedo ayudarte hoy?'
     };
+    
+    // Owners can only create clients for their tenant
+    if (req.tenantId && req.body.tenantId && req.body.tenantId !== req.tenantId) {
+      return res.status(403).json({ 
+        error: 'No puedes crear clientes para otros tenants' 
+      });
+    }
     
     let savedClient;
     
@@ -231,17 +239,27 @@ router.post('/client', validateAdmin, async (req, res) => {
   }
 });
 
-// Get all clients
+// Get all clients (filtered by tenant for owners)
 router.get('/clients', validateAdmin, async (req, res) => {
   try {
     let clients;
     
     if (isMongoDBAvailable()) {
       // Use MongoDB
-      clients = await Client.find({}).sort({ createdAt: -1 });
+      if (req.tenantId) {
+        // Owner: only see their tenant's clients
+        clients = await Client.find({ tenantId: req.tenantId }).sort({ createdAt: -1 });
+        console.log(`📋 Filtering clients for tenant ${req.tenantId}`);
+      } else {
+        // Admin: see all clients
+        clients = await Client.find({}).sort({ createdAt: -1 });
+      }
     } else {
       // Use in-memory storage
       clients = Object.values(inMemoryClients);
+      if (req.tenantId) {
+        clients = clients.filter(c => c.tenantId === req.tenantId);
+      }
     }
     
     const clientList = clients.map(client => ({
