@@ -242,7 +242,10 @@
                     message.innerHTML = `
                         <strong>¡Cuenta creada exitosamente!</strong><br>
                         Empresa: ${result.tenant.name}<br>
-                        Email: ${result.user.email}<br>
+                        <br>
+                        <strong>Para acceder al dashboard:</strong><br>
+                        📧 Email: ${result.user.email}<br>
+                        🔑 Contraseña: La que ingresaste<br>
                         <br>
                         <a href="/admin" style="color: #155724; text-decoration: underline;">
                             Ir al Dashboard →

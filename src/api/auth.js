@@ -6,9 +6,11 @@ const { validateAdmin } = require('../middleware/auth');
 const router = express.Router();
 
 // Import MongoDB models
-let Client;
+let Client, User, Tenant;
 try {
   Client = require('../models/Client');
+  User = require('../models/User');
+  Tenant = require('../models/Tenant');
 } catch (error) {
   console.log('⚠️  MongoDB models not available, using in-memory storage');
 }
@@ -32,22 +34,69 @@ const isMongoDBAvailable = () => {
   return Client && process.env.MONGODB_URI;
 };
 
-// Admin login
+// Admin login (supports both legacy admin and tenant users)
 router.post('/admin/login', async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, email } = req.body;
+    console.log('🔐 Login attempt:', { username, email, hasPassword: !!password });
     
+    // Try tenant user login first (email-based)
+    if (User && Tenant && (email || username.includes('@'))) {
+      const loginEmail = email || username;
+      console.log('👤 Attempting tenant user login for:', loginEmail);
+      
+      try {
+        const user = await User.findByEmail(loginEmail);
+        if (user && await user.comparePassword(password)) {
+          const tenant = await Tenant.findOne({ tenantId: user.tenantId });
+          
+          if (tenant) {
+            console.log('✅ Tenant user login successful');
+            
+            const token = jwt.sign(
+              { 
+                id: user.userId,
+                tenantId: user.tenantId,
+                email: user.email,
+                role: user.role,
+                type: 'tenant'
+              },
+              process.env.ADMIN_JWT_SECRET || 'admin-secret-change-this',
+              { expiresIn: '24h' }
+            );
+            
+            return res.json({
+              token,
+              admin: {
+                id: user.userId,
+                username: user.email,
+                role: user.role,
+                tenant: {
+                  name: tenant.name,
+                  tenantId: tenant.tenantId
+                }
+              }
+            });
+          }
+        }
+      } catch (dbError) {
+        console.log('⚠️ Database error during tenant login:', dbError.message);
+      }
+    }
+    
+    // Fall back to legacy admin login
+    console.log('🔧 Attempting legacy admin login for:', username);
     const admin = admins[username];
     if (!admin) {
       return res.status(401).json({ 
-        error: 'Credenciales inválidas' 
+        error: 'Credenciales inválidas. Use su email y contraseña de registro.' 
       });
     }
     
     // For demo purposes, accept 'admin123' as password
     if (password !== 'admin123') {
       return res.status(401).json({ 
-        error: 'Credenciales inválidas' 
+        error: 'Credenciales inválidas. Use su email y contraseña de registro.' 
       });
     }
     
@@ -55,7 +104,8 @@ router.post('/admin/login', async (req, res) => {
       { 
         id: admin.id, 
         username: admin.username, 
-        role: admin.role 
+        role: admin.role,
+        type: 'legacy'
       },
       process.env.ADMIN_JWT_SECRET || 'admin-secret-change-this',
       { expiresIn: '24h' }
