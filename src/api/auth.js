@@ -191,10 +191,11 @@ router.post('/client', validateAdmin, async (req, res) => {
       savedClient = clientData;
     }
     
-    // Generate JWT token with client info
+    // Generate JWT token with client info including tenantId
     const clientToken = jwt.sign(
       { 
-        clientId: savedClient.clientId, 
+        clientId: savedClient.clientId,
+        tenantId: savedClient.tenantId, // Critical: include tenant for usage tracking
         assistantId: savedClient.assistantId,
         businessName: savedClient.businessName,
         widgetTitle: savedClient.widgetTitle,
@@ -390,7 +391,8 @@ router.put('/clients/:clientId', validateAdmin, async (req, res) => {
       if (updates.widgetTitle !== undefined || updates.widgetGreeting !== undefined) {
         const newToken = jwt.sign(
           { 
-            clientId: client.clientId, 
+            clientId: client.clientId,
+            tenantId: client.tenantId, // Critical: include tenant for usage tracking
             assistantId: client.assistantId,
             businessName: client.businessName,
             widgetTitle: client.widgetTitle,
@@ -435,7 +437,8 @@ router.put('/clients/:clientId', validateAdmin, async (req, res) => {
       if (updates.widgetTitle !== undefined || updates.widgetGreeting !== undefined) {
         const newToken = jwt.sign(
           { 
-            clientId: client.clientId, 
+            clientId: client.clientId,
+            tenantId: client.tenantId, // Critical: include tenant for usage tracking
             assistantId: client.assistantId,
             businessName: client.businessName,
             widgetTitle: client.widgetTitle,
@@ -517,7 +520,8 @@ router.post('/clients/:clientId/regenerate-token', validateAdmin, async (req, re
       // Update JWT with latest client info
       const jwtToken = jwt.sign(
         { 
-          clientId: client.clientId, 
+          clientId: client.clientId,
+          tenantId: client.tenantId, // Critical: include tenant for usage tracking
           assistantId: client.assistantId,
           businessName: client.businessName,
           widgetTitle: client.widgetTitle,
@@ -544,7 +548,8 @@ router.post('/clients/:clientId/regenerate-token', validateAdmin, async (req, re
       
       const newToken = jwt.sign(
         { 
-          clientId: client.clientId, 
+          clientId: client.clientId,
+          tenantId: client.tenantId, // Critical: include tenant for usage tracking
           assistantId: client.assistantId,
           businessName: client.businessName,
           widgetTitle: client.widgetTitle,

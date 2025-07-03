@@ -30,10 +30,10 @@ const isMongoDBAvailable = () => {
 // Create or get session
 router.post('/session', async (req, res) => {
   try {
-    const { clientId, assistantId } = req.client;
+    const { clientId, tenantId, assistantId } = req.client;
     const sessionId = uuidv4();
     
-    console.log('Creating session for client:', { clientId, assistantId });
+    console.log('Creating session for client:', { clientId, tenantId, assistantId });
     
     // Create OpenAI thread for this session
     const thread = await openai.beta.threads.create();
@@ -45,6 +45,7 @@ router.post('/session', async (req, res) => {
       const session = new Session({
         sessionId,
         clientId,
+        tenantId, // Critical: track session to tenant
         threadId: thread.id,
         metadata: {
           userAgent: req.headers['user-agent'],
@@ -92,7 +93,7 @@ router.post('/session', async (req, res) => {
 router.post('/message', async (req, res) => {
   try {
     const { sessionId, message } = req.body;
-    const { clientId } = req.client;
+    const { clientId, tenantId } = req.client;
     
     if (!sessionId || !message) {
       return res.status(400).json({ 
@@ -150,6 +151,7 @@ router.post('/message', async (req, res) => {
       const userMessage = new Message({
         sessionId,
         clientId,
+        tenantId, // Critical: track message to tenant
         role: 'user',
         content: message
       });
@@ -231,6 +233,7 @@ router.post('/message', async (req, res) => {
       const assistantMsg = new Message({
         sessionId,
         clientId,
+        tenantId, // Critical: track message to tenant
         messageId: assistantMessage.id,
         role: 'assistant',
         content: responseContent
@@ -279,6 +282,7 @@ router.post('/message', async (req, res) => {
         const errorMessage = new Message({
           sessionId: req.body.sessionId,
           clientId: req.client.clientId,
+          tenantId: req.client.tenantId, // Critical: track message to tenant
           role: 'system',
           content: `Error: ${error.message}`,
           metadata: {
