@@ -177,8 +177,8 @@ app.get('/api/health', (req, res) => {
 // Routes
 app.use('/api/test', testRoutes); // NO authentication required for testing
 app.use('/api/test-sentry', testSentryRoutes); // Sentry test routes
+app.use('/api/register', tenantRegisterRoutes); // Tenant registration (no auth required)
 app.use('/api/tenant', tenantAuthRoutes); // Multi-tenant authentication
-app.use('/api/tenant', tenantRegisterRoutes); // Tenant registration (no auth required)
 app.use('/api/chat', validateClient, chatRoutes);
 app.use('/api/chat-demo', validateClient, chatDemoRoutes);
 app.use('/api/analytics', analyticsRoutes);
