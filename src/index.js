@@ -105,7 +105,40 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json());
+
+// Enhanced JSON parsing with better error handling
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, res, buf, encoding) => {
+    // Store raw body for debugging
+    req.rawBody = buf;
+  }
+}));
+
+// Body parser error handling middleware
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    console.error('Body parser error:', err.message);
+    console.error('Raw body:', req.rawBody?.toString());
+    
+    Sentry.captureException(err, {
+      extra: {
+        rawBody: req.rawBody?.toString(),
+        contentType: req.headers['content-type'],
+        endpoint: req.path,
+        method: req.method
+      }
+    });
+    
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid JSON format in request body',
+      details: 'Please check for special characters that need escaping',
+      position: err.message.match(/position (\d+)/)?.[1] || 'unknown'
+    });
+  }
+  next(err);
+});
 
 // Handle preflight requests
 app.options('*', cors(corsOptions));

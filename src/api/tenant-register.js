@@ -7,7 +7,10 @@ const Sentry = require('../instrument');
 
 const router = express.Router();
 
-// Register new tenant with owner user
+// Add URL-encoded form support
+router.use(express.urlencoded({ extended: true }));
+
+// Register new tenant with owner user (accepts both JSON and form data)
 router.post('/register', async (req, res) => {
   try {
     const { 
@@ -198,6 +201,35 @@ router.get('/check-availability/:slug', async (req, res) => {
     res.status(500).json({
       available: false,
       error: 'Unable to check availability'
+    });
+  }
+});
+
+// Simple form-data test endpoint
+router.post('/test-form', async (req, res) => {
+  try {
+    console.log('📝 Form data received:', req.body);
+    console.log('📝 Content-Type:', req.headers['content-type']);
+    
+    const { companyName, email, password, contactName } = req.body;
+    
+    res.json({
+      success: true,
+      message: 'Form data received successfully',
+      receivedData: {
+        companyName: companyName || 'missing',
+        email: email || 'missing', 
+        passwordLength: password ? password.length : 0,
+        contactName: contactName || 'missing'
+      },
+      contentType: req.headers['content-type'],
+      method: req.method
+    });
+  } catch (error) {
+    console.error('Form test error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });
