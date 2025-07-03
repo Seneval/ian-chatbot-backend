@@ -1,6 +1,7 @@
 const express = require('express');
 const OpenAI = require('openai');
 const supabaseRoutes = require('./test/supabase');
+const modelsRoutes = require('./test/models');
 const router = express.Router();
 
 // Initialize OpenAI client
@@ -169,7 +170,8 @@ router.post('/full-test', async (req, res) => {
   }
 });
 
-// Mount Supabase test routes
+// Mount test routes
 router.use('/supabase', supabaseRoutes);
+router.use('/models', modelsRoutes);
 
 module.exports = router;
