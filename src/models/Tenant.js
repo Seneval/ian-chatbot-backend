@@ -7,6 +7,12 @@ const tenantSchema = new mongoose.Schema({
     default: uuidv4,
     unique: true
   },
+  supabaseUserId: {
+    type: String,
+    unique: true,
+    sparse: true, // Allow null values but ensure uniqueness when present
+    index: true
+  },
   name: {
     type: String,
     required: true,
@@ -241,6 +247,20 @@ tenantSchema.statics.findExpiring = function(days = 3) {
     'subscription.status': 'trialing',
     'subscription.trialEnd': { $lte: cutoffDate },
     isActive: true
+  });
+};
+
+tenantSchema.statics.findBySupabaseUserId = function(supabaseUserId) {
+  return this.findOne({ supabaseUserId, isActive: true });
+};
+
+tenantSchema.statics.createTestTenant = async function(suffix = '') {
+  const timestamp = Date.now();
+  return this.create({
+    supabaseUserId: `test-${timestamp}${suffix}`,
+    slug: `test-company-${timestamp}${suffix}`,
+    name: `Test Company ${suffix}`,
+    email: `test${timestamp}${suffix}@example.com`
   });
 };
 
