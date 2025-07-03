@@ -1,6 +1,7 @@
 const express = require('express');
 const OpenAI = require('openai');
 const { v4: uuidv4 } = require('uuid');
+const { checkUsageLimit } = require('../middleware/auth');
 const router = express.Router();
 
 // Initialize OpenAI client
@@ -9,11 +10,12 @@ const openai = new OpenAI({
 });
 
 // Import MongoDB models
-let Session, Message, Client;
+let Session, Message, Client, Tenant;
 try {
   Session = require('../models/Session');
   Message = require('../models/Message');
   Client = require('../models/Client');
+  Tenant = require('../models/Tenant');
 } catch (error) {
   console.log('⚠️  MongoDB models not available, using in-memory storage');
 }
@@ -24,7 +26,7 @@ const inMemoryMessages = {};
 
 // Check if MongoDB is available
 const isMongoDBAvailable = () => {
-  return Session && Message && Client && process.env.MONGODB_URI;
+  return Session && Message && Client && Tenant && process.env.MONGODB_URI;
 };
 
 // Create or get session
@@ -90,7 +92,7 @@ router.post('/session', async (req, res) => {
 });
 
 // Send message to assistant
-router.post('/message', async (req, res) => {
+router.post('/message', checkUsageLimit, async (req, res) => {
   try {
     const { sessionId, message } = req.body;
     const { clientId, tenantId } = req.client;
@@ -247,6 +249,13 @@ router.post('/message', async (req, res) => {
       const client = await Client.findOne({ clientId });
       if (client) {
         await client.incrementMessageCount();
+      }
+      
+      // Update tenant usage (both daily and monthly)
+      if (req.tenant) {
+        await req.tenant.updateUsage('currentDayMessages', 2); // User + assistant message
+        await req.tenant.updateUsage('currentMonthMessages', 2);
+        await req.tenant.updateUsage('totalMessages', 2);
       }
     } else {
       const messageId = uuidv4();

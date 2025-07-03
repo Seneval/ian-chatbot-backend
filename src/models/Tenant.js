@@ -109,6 +109,17 @@ const tenantSchema = new mongoose.Schema({
           default: return 1000; // trial
         }
       }
+    },
+    maxMessagesPerDay: {
+      type: Number,
+      default: function() {
+        switch(this.subscription?.plan) {
+          case 'starter': return 5000;
+          case 'pro': return 20000;
+          case 'enterprise': return 100000;
+          default: return 10; // trial - 10 calls/day free
+        }
+      }
     }
   },
   
@@ -126,11 +137,19 @@ const tenantSchema = new mongoose.Schema({
       type: Number,
       default: 0
     },
+    currentDayMessages: {
+      type: Number,
+      default: 0
+    },
     totalMessages: {
       type: Number,
       default: 0
     },
     lastUsageReset: {
+      type: Date,
+      default: Date.now
+    },
+    lastDayReset: {
       type: Date,
       default: Date.now
     }
@@ -187,11 +206,18 @@ tenantSchema.index({ createdAt: -1 });
 tenantSchema.methods.updateUsage = function(field, increment = 1) {
   const now = new Date();
   const lastReset = new Date(this.usage.lastUsageReset);
+  const lastDayReset = new Date(this.usage.lastDayReset);
   
   // Reset monthly counters if needed
   if (now.getMonth() !== lastReset.getMonth() || now.getFullYear() !== lastReset.getFullYear()) {
     this.usage.currentMonthMessages = 0;
     this.usage.lastUsageReset = now;
+  }
+  
+  // Reset daily counters if needed (new day)
+  if (now.toDateString() !== lastDayReset.toDateString()) {
+    this.usage.currentDayMessages = 0;
+    this.usage.lastDayReset = now;
   }
   
   this.usage[field] += increment;
@@ -204,9 +230,11 @@ tenantSchema.methods.isWithinLimits = function() {
     clients: this.usage.currentClients < this.limits.maxClients,
     users: this.usage.currentUsers < this.limits.maxUsers,
     messages: this.usage.currentMonthMessages < this.limits.maxMessagesPerMonth,
+    dailyMessages: this.usage.currentDayMessages < this.limits.maxMessagesPerDay,
     overall: this.usage.currentClients < this.limits.maxClients && 
              this.usage.currentUsers < this.limits.maxUsers &&
-             this.usage.currentMonthMessages < this.limits.maxMessagesPerMonth
+             this.usage.currentMonthMessages < this.limits.maxMessagesPerMonth &&
+             this.usage.currentDayMessages < this.limits.maxMessagesPerDay
   };
 };
 
