@@ -166,57 +166,55 @@
             </div>
             <div class="pricing-grid">
                 <div class="pricing-card">
-                    <div class="plan-name">Plan Gratuito</div>
+                    <div class="plan-name">Chatbot Gratuito</div>
                     <div class="plan-price">
                         <span class="currency">$</span>
                         <span class="amount">0</span>
                         <span class="period">para siempre</span>
                     </div>
                     <ul class="plan-features">
-                        <li>✓ 10 llamadas/día gratis</li>
+                        <li>✓ 10 llamadas/día por chatbot</li>
                         <li>✓ Chatbots ilimitados</li>
                         <li>✓ Dashboard completo</li>
                         <li>✓ Analytics básicos</li>
-                        <li>✓ Perfecto para probar</li>
+                        <li>✓ Perfecto para demos y pruebas</li>
                     </ul>
                     <a href="/register" class="btn-outline">Empezar Gratis</a>
                 </div>
                 
                 <div class="pricing-card featured">
-                    <div class="plan-badge">Para Profesionales</div>
-                    <div class="plan-name">Plan Profesional</div>
+                    <div class="plan-badge">Más Popular</div>
+                    <div class="plan-name">Chatbot Premium</div>
                     <div class="plan-price">
                         <span class="currency">$</span>
                         <span class="amount">200</span>
-                        <span class="period">/mes MXN</span>
+                        <span class="period">/mes por chatbot</span>
                     </div>
                     <ul class="plan-features">
-                        <li>✓ Llamadas ilimitadas</li>
-                        <li>✓ Chatbots ilimitados</li>
-                        <li>✓ 3 usuarios en equipo</li>
+                        <li>✓ 1,000 llamadas/día por chatbot</li>
                         <li>✓ Analytics avanzados</li>
-                        <li>✓ Reportes white-label</li>
+                        <li>✓ Widget personalizable</li>
                         <li>✓ Soporte prioritario</li>
+                        <li>✓ Sin límites de sesiones</li>
+                        <li>✓ Actualizaciones automáticas</li>
                     </ul>
                     <a href="/register" class="btn-primary">Empezar Ahora</a>
                 </div>
 
                 <div class="pricing-card">
-                    <div class="plan-name">Plan Agencia</div>
+                    <div class="plan-name">Volumen Empresarial</div>
                     <div class="plan-price">
-                        <span class="currency">$</span>
-                        <span class="amount">500</span>
-                        <span class="period">/mes MXN</span>
+                        <span class="amount">Personalizado</span>
                     </div>
                     <ul class="plan-features">
-                        <li>✓ Todo del Plan Profesional</li>
-                        <li>✓ 10 usuarios en equipo</li>
-                        <li>✓ Marca personalizada completa</li>
-                        <li>✓ API para integraciones</li>
+                        <li>✓ Precios por volumen</li>
+                        <li>✓ 10+ chatbots</li>
                         <li>✓ Manager de cuenta dedicado</li>
-                        <li>✓ Soporte telefónico</li>
+                        <li>✓ API personalizada</li>
+                        <li>✓ SLA garantizado</li>
+                        <li>✓ Facturación empresarial</li>
                     </ul>
-                    <a href="/register" class="btn-outline">Contactar</a>
+                    <a href="/register" class="btn-outline">Contactar Ventas</a>
                 </div>
             </div>
         </div>
@@ -229,7 +227,7 @@
                 <h2>¿Listo para convertir tu talento en IA en un negocio rentable?</h2>
                 <p>Únete a cientos de creadores que ya están generando ingresos recurrentes con iAN</p>
                 <a href="/register" class="btn-primary btn-large">Empezar con 10 Llamadas Gratis</a>
-                <p class="cta-note">10 llamadas/día gratis para siempre • Luego $200 MXN/mes • Sin compromisos anuales</p>
+                <p class="cta-note">10 llamadas/día gratis por chatbot • Premium: $200 MXN/mes por chatbot • Sin compromisos</p>
             </div>
         </div>
     </section>
@@ -284,22 +282,8 @@
             });
         });
 
-        // Update registration and login links to point to actual pages
-        document.querySelectorAll('a[href="/register"]').forEach(button => {
-            button.addEventListener('click', function(e) {
-                e.preventDefault();
-                // Redirect to tenant registration page
-                window.location.href = 'https://admin.inteligenciaartificialparanegocios.com/register.html';
-            });
-        });
-
-        document.querySelectorAll('a[href="/login"]').forEach(button => {
-            button.addEventListener('click', function(e) {
-                e.preventDefault();
-                // Redirect to admin login page
-                window.location.href = 'https://admin.inteligenciaartificialparanegocios.com';
-            });
-        });
+        // Registration links will work directly through href="/register"
+        // No JavaScript override needed
     </script>
 </body>
 </html>

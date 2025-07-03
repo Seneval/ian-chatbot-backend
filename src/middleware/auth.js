@@ -1,9 +1,10 @@
 const jwt = require('jsonwebtoken');
 
 // Import MongoDB models
-let Tenant;
+let Tenant, Client;
 try {
   Tenant = require('../models/Tenant');
+  Client = require('../models/Client');
 } catch (error) {
   console.log('⚠️  MongoDB models not available for usage middleware');
 }
@@ -78,50 +79,61 @@ const validateAdmin = async (req, res, next) => {
 
 const checkUsageLimit = async (req, res, next) => {
   try {
-    // Only check limits if we have tenant info and MongoDB available
-    if (!req.client?.tenantId || !Tenant) {
-      return next();
+    // Check per-chatbot limits (new pricing model)
+    if (req.client?.clientId && Client) {
+      const client = await Client.findOne({ clientId: req.client.clientId });
+      if (!client) {
+        return res.status(404).json({ 
+          error: 'Cliente no encontrado' 
+        });
+      }
+      
+      // Check if chatbot is within daily limits
+      const isWithinLimits = await client.isWithinLimits();
+      
+      if (!isWithinLimits) {
+        const remainingHours = 24 - new Date().getHours();
+        const isPaid = client.plan === 'paid';
+        
+        return res.status(429).json({ 
+          error: isPaid 
+            ? `Has alcanzado el límite de ${client.limits.messagesPerDay} mensajes por día.`
+            : `Has alcanzado el límite gratuito de ${client.limits.messagesPerDay} mensajes por día. Actualiza a Premium por solo $200 MXN/mes para obtener hasta 1,000 mensajes diarios.`,
+          code: 'DAILY_LIMIT_EXCEEDED',
+          limits: {
+            daily: client.limits.messagesPerDay,
+            used: client.usage.currentDayMessages,
+            resetIn: remainingHours,
+            plan: client.plan
+          },
+          upgrade: !isPaid ? {
+            message: 'Actualiza a Premium para más mensajes',
+            price: 200,
+            currency: 'MXN',
+            features: ['1,000 mensajes por día', 'Soporte prioritario', 'Sin límites de sesiones']
+          } : undefined
+        });
+      }
+      
+      // Store client for later use in updating usage
+      req.chatbotClient = client;
     }
     
-    const tenant = await Tenant.findOne({ tenantId: req.client.tenantId });
-    if (!tenant) {
-      return res.status(404).json({ 
-        error: 'Tenant no encontrado' 
-      });
-    }
-    
-    // Reset counters if needed (this will happen automatically but let's be explicit)
-    await tenant.updateUsage('currentDayMessages', 0); // This will trigger reset logic
-    
-    // Check if tenant is within daily limits
-    const limits = tenant.isWithinLimits();
-    
-    if (!limits.dailyMessages) {
-      const remainingHours = 24 - new Date().getHours();
-      return res.status(429).json({ 
-        error: `Has alcanzado el límite de ${tenant.limits.maxMessagesPerDay} mensajes por día. Intenta de nuevo en ${remainingHours} horas o actualiza tu plan.`,
-        code: 'DAILY_LIMIT_EXCEEDED',
-        limits: {
-          daily: tenant.limits.maxMessagesPerDay,
-          used: tenant.usage.currentDayMessages,
-          resetIn: remainingHours
+    // Also check tenant-level limits if available (for overall platform limits)
+    if (req.client?.tenantId && Tenant) {
+      const tenant = await Tenant.findOne({ tenantId: req.client.tenantId });
+      if (tenant) {
+        const limits = tenant.isWithinLimits();
+        if (!limits.dailyMessages) {
+          return res.status(429).json({ 
+            error: 'El tenant ha alcanzado su límite diario de mensajes.',
+            code: 'TENANT_DAILY_LIMIT_EXCEEDED'
+          });
         }
-      });
+        req.tenant = tenant;
+      }
     }
     
-    if (!limits.messages) {
-      return res.status(429).json({ 
-        error: `Has alcanzado el límite mensual de ${tenant.limits.maxMessagesPerMonth} mensajes. Actualiza tu plan para continuar.`,
-        code: 'MONTHLY_LIMIT_EXCEEDED',
-        limits: {
-          monthly: tenant.limits.maxMessagesPerMonth,
-          used: tenant.usage.currentMonthMessages
-        }
-      });
-    }
-    
-    // Store tenant for later use in updating usage
-    req.tenant = tenant;
     next();
   } catch (error) {
     console.error('Error checking usage limits:', error);

@@ -42,8 +42,36 @@ const clientSchema = new mongoose.Schema({
   },
   plan: { 
     type: String, 
-    enum: ['basic', 'pro', 'enterprise'], 
-    default: 'basic' 
+    enum: ['free', 'paid'], 
+    default: 'free' 
+  },
+  
+  // Pricing information for per-chatbot model
+  pricing: {
+    isPaid: {
+      type: Boolean,
+      default: false
+    },
+    amount: {
+      type: Number,
+      default: 0 // 0 for free, 200 for paid
+    },
+    currency: {
+      type: String,
+      default: 'MXN'
+    },
+    stripeSubscriptionId: String,
+    stripeCustomerId: String,
+    subscriptionStatus: {
+      type: String,
+      enum: ['active', 'past_due', 'canceled', 'unpaid', 'trialing', 'none'],
+      default: 'none'
+    },
+    nextBillingDate: Date,
+    cancelAtPeriodEnd: {
+      type: Boolean,
+      default: false
+    }
   },
   isActive: { 
     type: Boolean, 
@@ -58,9 +86,16 @@ const clientSchema = new mongoose.Schema({
     enum: ['pending', 'paid', 'overdue'], 
     default: 'pending' 
   },
-  monthlyMessageLimit: {
-    type: Number,
-    default: 1000
+  // Usage limits based on plan
+  limits: {
+    messagesPerDay: {
+      type: Number,
+      default: 10 // 10 calls/day for free, updated when plan changes
+    },
+    messagesPerMonth: {
+      type: Number,
+      default: 300 // ~10/day for free, updated when plan changes
+    }
   },
   widgetTitle: {
     type: String,
@@ -73,25 +108,35 @@ const clientSchema = new mongoose.Schema({
     trim: true
   },
   // Usage tracking
-  totalMessages: {
-    type: Number,
-    default: 0
-  },
-  totalSessions: {
-    type: Number,
-    default: 0
-  },
-  currentMonthMessages: {
-    type: Number,
-    default: 0
-  },
-  currentMonthSessions: {
-    type: Number,
-    default: 0
-  },
-  lastMonthReset: {
-    type: Date,
-    default: Date.now
+  usage: {
+    totalMessages: {
+      type: Number,
+      default: 0
+    },
+    totalSessions: {
+      type: Number,
+      default: 0
+    },
+    currentDayMessages: {
+      type: Number,
+      default: 0
+    },
+    currentMonthMessages: {
+      type: Number,
+      default: 0
+    },
+    currentMonthSessions: {
+      type: Number,
+      default: 0
+    },
+    lastDayReset: {
+      type: Date,
+      default: Date.now
+    },
+    lastMonthReset: {
+      type: Date,
+      default: Date.now
+    }
   },
   createdAt: { 
     type: Date, 
@@ -126,35 +171,76 @@ clientSchema.methods.updateActivity = function() {
 
 clientSchema.methods.incrementMessageCount = function() {
   const now = new Date();
-  const lastReset = new Date(this.lastMonthReset);
+  const lastMonthReset = new Date(this.usage.lastMonthReset);
+  const lastDayReset = new Date(this.usage.lastDayReset);
   
-  // Check if we need to reset monthly counters
-  if (now.getMonth() !== lastReset.getMonth() || now.getFullYear() !== lastReset.getFullYear()) {
-    this.currentMonthMessages = 0;
-    this.currentMonthSessions = 0;
-    this.lastMonthReset = now;
+  // Check if we need to reset daily counters
+  if (now.toDateString() !== lastDayReset.toDateString()) {
+    this.usage.currentDayMessages = 0;
+    this.usage.lastDayReset = now;
   }
   
-  this.totalMessages += 1;
-  this.currentMonthMessages += 1;
+  // Check if we need to reset monthly counters
+  if (now.getMonth() !== lastMonthReset.getMonth() || now.getFullYear() !== lastMonthReset.getFullYear()) {
+    this.usage.currentMonthMessages = 0;
+    this.usage.currentMonthSessions = 0;
+    this.usage.lastMonthReset = now;
+  }
+  
+  this.usage.totalMessages += 1;
+  this.usage.currentDayMessages += 1;
+  this.usage.currentMonthMessages += 1;
   this.lastActive = now;
   return this.save();
 };
 
 clientSchema.methods.incrementSessionCount = function() {
   const now = new Date();
-  const lastReset = new Date(this.lastMonthReset);
+  const lastReset = new Date(this.usage.lastMonthReset);
   
   // Check if we need to reset monthly counters
   if (now.getMonth() !== lastReset.getMonth() || now.getFullYear() !== lastReset.getFullYear()) {
-    this.currentMonthMessages = 0;
-    this.currentMonthSessions = 0;
-    this.lastMonthReset = now;
+    this.usage.currentMonthMessages = 0;
+    this.usage.currentMonthSessions = 0;
+    this.usage.lastMonthReset = now;
   }
   
-  this.totalSessions += 1;
-  this.currentMonthSessions += 1;
+  this.usage.totalSessions += 1;
+  this.usage.currentMonthSessions += 1;
   this.lastActive = now;
+  return this.save();
+};
+
+// Check if chatbot has exceeded limits
+clientSchema.methods.isWithinLimits = function() {
+  const now = new Date();
+  const lastDayReset = new Date(this.usage.lastDayReset);
+  
+  // Reset daily counter if needed
+  if (now.toDateString() !== lastDayReset.toDateString()) {
+    this.usage.currentDayMessages = 0;
+    this.usage.lastDayReset = now;
+  }
+  
+  // Check daily limit
+  return this.usage.currentDayMessages < this.limits.messagesPerDay;
+};
+
+// Update limits when plan changes
+clientSchema.methods.updatePlan = function(plan, isPaid = false) {
+  this.plan = plan;
+  this.pricing.isPaid = isPaid;
+  
+  if (plan === 'paid') {
+    this.limits.messagesPerDay = 1000;
+    this.limits.messagesPerMonth = 30000;
+    this.pricing.amount = 200;
+  } else {
+    this.limits.messagesPerDay = 10;
+    this.limits.messagesPerMonth = 300;
+    this.pricing.amount = 0;
+  }
+  
   return this.save();
 };
 

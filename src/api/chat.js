@@ -245,10 +245,14 @@ router.post('/message', checkUsageLimit, async (req, res) => {
       // Update session
       await session.incrementMessageCount();
       
-      // Update client statistics
-      const client = await Client.findOne({ clientId });
-      if (client) {
-        await client.incrementMessageCount();
+      // Update client statistics (per-chatbot usage tracking)
+      if (req.chatbotClient) {
+        await req.chatbotClient.incrementMessageCount();
+      } else {
+        const client = await Client.findOne({ clientId });
+        if (client) {
+          await client.incrementMessageCount();
+        }
       }
       
       // Update tenant usage (both daily and monthly)

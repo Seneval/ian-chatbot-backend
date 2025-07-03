@@ -158,11 +158,21 @@ router.post('/client', validateAdmin, async (req, res) => {
       contactPerson,
       phone,
       assistantId,
-      plan,
+      plan: plan || 'free', // Default to free plan
       notes,
-      monthlyMessageLimit,
       widgetTitle: widgetTitle || 'Asistente Virtual',
-      widgetGreeting: widgetGreeting || '¡Hola! 👋 Soy tu asistente virtual. ¿En qué puedo ayudarte hoy?'
+      widgetGreeting: widgetGreeting || '¡Hola! 👋 Soy tu asistente virtual. ¿En qué puedo ayudarte hoy?',
+      // Set pricing based on plan
+      pricing: {
+        isPaid: plan === 'paid',
+        amount: plan === 'paid' ? 200 : 0,
+        currency: 'MXN',
+        subscriptionStatus: plan === 'paid' ? 'pending' : 'none'
+      },
+      limits: {
+        messagesPerDay: plan === 'paid' ? 1000 : 10,
+        messagesPerMonth: plan === 'paid' ? 30000 : 300
+      }
     };
     
     // Owners can only create clients for their tenant

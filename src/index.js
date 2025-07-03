@@ -1,8 +1,9 @@
-// Initialize Sentry FIRST
+// Load environment variables FIRST
+require('dotenv').config();
+
+// Initialize Sentry AFTER environment variables are loaded
 require('./instrument');
 const Sentry = require('@sentry/node');
-
-require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
