@@ -17,6 +17,7 @@ const chatDemoRoutes = require('./api/chat-demo');
 const analyticsRoutes = require('./api/analytics');
 const authRoutes = require('./api/auth');
 const tenantAuthRoutes = require('./api/tenant-auth');
+const tenantRegisterRoutes = require('./api/tenant-register');
 const testRoutes = require('./api/test');
 const testSentryRoutes = require('./api/test-sentry');
 
@@ -177,6 +178,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/test', testRoutes); // NO authentication required for testing
 app.use('/api/test-sentry', testSentryRoutes); // Sentry test routes
 app.use('/api/tenant', tenantAuthRoutes); // Multi-tenant authentication
+app.use('/api/tenant', tenantRegisterRoutes); // Tenant registration (no auth required)
 app.use('/api/chat', validateClient, chatRoutes);
 app.use('/api/chat-demo', validateClient, chatDemoRoutes);
 app.use('/api/analytics', analyticsRoutes);
