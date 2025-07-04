@@ -166,37 +166,26 @@ app.use((req, res, next) => {
       return res.redirect('/admin');
     }
     
-    // For /agencias, serve from /admin/agencias
+    // For /agencias, serve from /agencias
     if (req.path === '/agencias' || req.path === '/agencias/') {
-      return res.redirect('/admin/agencias/');
+      return res.redirect('/agencias/');
     }
   }
   
   next();
 });
 
-// Serve static files
-app.use(express.static(path.join(__dirname, '..')));
+// Serve static files from public directory
+app.use(express.static(path.join(__dirname, '../public')));
 
-// Serve admin static files
-app.use('/admin', express.static(path.join(__dirname, 'admin')));
-
-// Serve homepage static files
-app.use('/homepage', express.static(path.join(__dirname, '../public/homepage')));
-
-// Serve marketing homepage at root
+// Serve marketing landing at root
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/homepage/index.html'));
+  res.sendFile(path.join(__dirname, '../public/landing/index.html'));
 });
 
-// Serve registration page
+// Redirect /register to admin registration
 app.get('/register', (req, res) => {
-  res.sendFile(path.join(__dirname, 'admin/register.html'));
-});
-
-// Alternative path for registration  
-app.get('/admin/register', (req, res) => {
-  res.sendFile(path.join(__dirname, 'admin/register.html'));
+  res.redirect('/admin/register.html');
 });
 
 // API info endpoint

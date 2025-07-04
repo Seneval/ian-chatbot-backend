@@ -321,3 +321,102 @@ git push origin vX.X-stable
 - **Starter**: 50 clients, 3 users, 100,000 messages/month
 - **Pro**: 200 clients, 10 users, 500,000 messages/month
 - **Enterprise**: 1,000 clients, 50 users, 2,000,000 messages/month
+
+## Page Structure & Routes
+
+### Domain Overview
+1. **inteligenciaartificialparanegocios.com** - Main domain
+2. **admin.inteligenciaartificialparanegocios.com** - Admin subdomain
+3. **ian-chatbot-backend-h6zr.vercel.app** - Vercel production deployment
+
+### Complete Page Structure
+
+```
+inteligenciaartificialparanegocios.com/
+├── / (root)
+│   └── Landing page de ventas (public/homepage/index.html)
+│       - Target: Agencias, freelancers, creadores de chatbots
+│       - Pricing: $200 MXN/mes por chatbot premium
+│       - CTAs llevan a registro
+│
+├── /homepage
+│   └── Misma landing page (ruta alternativa)
+│
+├── /register
+│   └── Redirect a → /admin/register.html
+│
+├── /admin
+│   ├── /admin (login)
+│   │   └── Página de login (src/admin/index.html)
+│   │       - Login para administradores/owners
+│   │       - Redirect a dashboard después de auth
+│   │
+│   ├── /admin/dashboard.html
+│   │   └── Dashboard principal (src/admin/dashboard.html)
+│   │       - Gestión de chatbots
+│   │       - Analytics y métricas
+│   │       - Configuración de clientes
+│   │       - Requiere autenticación
+│   │
+│   ├── /admin/register.html
+│   │   └── Registro de nuevos tenants (src/admin/register.html)
+│   │       - Crear cuenta de empresa
+│   │       - Información del owner
+│   │       - Sin auth requerida
+│   │
+│   └── /admin/agencias/
+│       └── Landing para agencias (src/admin/agencias/index.html)
+│           - Versión de ventas enfocada en agencias
+│           - Misma estructura que homepage
+│           - CSS local incluido
+│
+├── /test-chat?token=XXX
+│   └── Página de prueba del widget
+│       - Generada dinámicamente
+│       - Requiere token válido
+│
+├── /widget.js
+│   └── Script del widget embebible (public/widget.js)
+│       - Se incluye en sitios de clientes
+│       - Maneja toda la UI del chat
+│
+└── /api/*
+    └── Endpoints de la API REST
+        - /api/auth/* - Autenticación
+        - /api/chat/* - Funcionalidad del chat
+        - /api/analytics/* - Métricas
+        - /api/test/* - Testing
+```
+
+### Admin Subdomain Routes
+```
+admin.inteligenciaartificialparanegocios.com/
+├── / → Redirige a /admin
+├── /agencias → Redirige a /admin/agencias/
+└── [Todas las demás rutas funcionan igual que el dominio principal]
+```
+
+### User Flows
+
+1. **Nuevo visitante (Agencia/Freelancer)**:
+   - Llega a landing (/) → Lee beneficios → Click "Empezar Gratis"
+   - Va a /admin/register.html → Crea cuenta → Dashboard
+
+2. **Cliente existente**:
+   - Va directo a /admin → Login → /admin/dashboard.html
+   - O usa admin.inteligenciaartificialparanegocios.com
+
+3. **Agencia explorando**:
+   - Visita /admin/agencias → Info específica para agencias
+   - Click en CTA → /admin/register.html
+
+4. **Usuario final del chatbot**:
+   - No visita nuestro sitio
+   - Interactúa vía widget.js embebido en sitio del cliente
+
+### File Locations
+- **Landing pages**: `/public/homepage/` y `/src/admin/agencias/`
+- **Admin interface**: `/src/admin/`
+- **Widget**: `/public/widget.js`
+- **API**: `/src/api/`
+- **Backups**: `/src/admin.backup/` (no se usan)
