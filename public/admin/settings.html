@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iAN Admin - Configuración</title>
+    <link rel="stylesheet" href="/admin/css/admin.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="settings-page">
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="header-left">
+                <h1 class="header-logo">iAN Admin</h1>
+            </div>
+            <div class="header-right">
+                <nav class="header-nav">
+                    <a href="dashboard.html" class="nav-link">📊 Dashboard</a>
+                    <a href="settings.html" class="nav-link active">⚙️ Configuración</a>
+                </nav>
+                <button class="btn btn-secondary btn-sm" onclick="adminAuth.logout()">
+                    🚪 Salir
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Settings Header -->
+        <section class="settings-header">
+            <h2 class="section-title">⚙️ Configuración de Administrador</h2>
+            <p class="section-subtitle">Administra tu perfil y credenciales de acceso</p>
+        </section>
+
+        <!-- Profile Section -->
+        <section class="settings-section">
+            <div class="settings-card">
+                <h3 class="card-title">👤 Información del Perfil</h3>
+                <form id="profileForm">
+                    <div class="form-group">
+                        <label for="username">Nombre de Usuario</label>
+                        <input 
+                            type="text" 
+                            id="username" 
+                            name="username" 
+                            class="form-control"
+                            required
+                            minlength="3"
+                            maxlength="30"
+                            pattern="[a-zA-Z0-9_-]+"
+                            title="Solo letras, números, guiones y guiones bajos"
+                        >
+                        <small class="form-hint">Utilizado para iniciar sesión</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email">Correo Electrónico</label>
+                        <input 
+                            type="email" 
+                            id="email" 
+                            name="email" 
+                            class="form-control"
+                            required
+                        >
+                        <small class="form-hint">Utilizado para notificaciones y recuperación de contraseña</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Rol</label>
+                        <div class="readonly-field" id="userRole">Cargando...</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>ID de Administrador</label>
+                        <div class="readonly-field" id="adminId">Cargando...</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Último Acceso</label>
+                        <div class="readonly-field" id="lastLogin">Cargando...</div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary" id="saveProfileBtn">
+                            💾 Guardar Cambios
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- Password Section -->
+        <section class="settings-section">
+            <div class="settings-card">
+                <h3 class="card-title">🔐 Cambiar Contraseña</h3>
+                <form id="passwordForm">
+                    <div class="form-group">
+                        <label for="currentPassword">Contraseña Actual</label>
+                        <input 
+                            type="password" 
+                            id="currentPassword" 
+                            name="currentPassword" 
+                            class="form-control"
+                            required
+                            autocomplete="current-password"
+                        >
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="newPassword">Nueva Contraseña</label>
+                        <input 
+                            type="password" 
+                            id="newPassword" 
+                            name="newPassword" 
+                            class="form-control"
+                            required
+                            minlength="8"
+                            autocomplete="new-password"
+                        >
+                        <small class="form-hint">Mínimo 8 caracteres</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirmar Nueva Contraseña</label>
+                        <input 
+                            type="password" 
+                            id="confirmPassword" 
+                            name="confirmPassword" 
+                            class="form-control"
+                            required
+                            minlength="8"
+                            autocomplete="new-password"
+                        >
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary" id="changePasswordBtn">
+                            🔒 Cambiar Contraseña
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- Admin Users Section (only for super_admin) -->
+        <section class="settings-section" id="adminUsersSection" style="display: none;">
+            <div class="settings-card">
+                <h3 class="card-title">👥 Administradores del Sistema</h3>
+                <p class="card-subtitle">Lista de todos los administradores con acceso al sistema</p>
+                
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Usuario</th>
+                                <th>Email</th>
+                                <th>Rol</th>
+                                <th>Estado</th>
+                                <th>Último Acceso</th>
+                                <th>Creado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminUsersTableBody">
+                            <!-- Admin users will be loaded here -->
+                        </tbody>
+                    </table>
+                    
+                    <div id="adminUsersLoading" class="loading-overlay" style="display: none;">
+                        <div class="loading-spinner"></div>
+                    </div>
+                    
+                    <div id="adminUsersEmpty" class="empty-state" style="display: none;">
+                        <div class="empty-state-icon">👥</div>
+                        <p>No hay otros administradores registrados</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- First Time Setup Info -->
+        <section class="settings-section" id="setupInfoSection" style="display: none;">
+            <div class="info-card warning">
+                <h3>⚠️ Configuración Inicial</h3>
+                <p>Para crear el primer administrador, usa el endpoint de configuración inicial:</p>
+                <code>POST /api/admin/setup</code>
+                <p>Con el header:</p>
+                <code>x-admin-setup-key: [tu-clave-de-configuración]</code>
+                <p>Este endpoint solo funciona una vez. Después de crear el primer administrador, debes eliminar ADMIN_SETUP_KEY del archivo .env</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Message Container -->
+    <div id="messageContainer" class="message-container"></div>
+
+    <!-- Scripts -->
+    <script src="/admin/js/auth.js"></script>
+    <script src="/admin/js/settings.js"></script>
+</body>
+</html>

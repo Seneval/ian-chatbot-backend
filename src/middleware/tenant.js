@@ -174,7 +174,10 @@ async function validateTenantLegacy(req, res, next) {
     // Verify the token
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret-change-this');
+      if (!process.env.JWT_SECRET) {
+        throw new Error('JWT_SECRET environment variable is required');
+      }
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
     } catch (error) {
       return res.status(401).json({ 
         error: 'Token inválido o expirado',
@@ -412,7 +415,10 @@ const validateSuperAdmin = async (req, res, next) => {
       });
     }
 
-    const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET || 'admin-secret-change-this');
+    if (!process.env.ADMIN_JWT_SECRET) {
+      throw new Error('ADMIN_JWT_SECRET environment variable is required');
+    }
+    const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET);
     
     // Check if it's the legacy admin or a super admin email
     const superAdminEmails = (process.env.SUPER_ADMIN_EMAILS || 'admin@platform.com').split(',');

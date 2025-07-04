@@ -5,9 +5,9 @@ const { checkUsageLimit } = require('../middleware/auth');
 const router = express.Router();
 
 // Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || 'sk-demo-key-for-development'
-});
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+}) : null;
 
 // Import MongoDB models
 let Session, Message, Client, Tenant;
@@ -32,6 +32,12 @@ const isMongoDBAvailable = () => {
 // Create or get session
 router.post('/session', async (req, res) => {
   try {
+    if (!openai) {
+      return res.status(503).json({ 
+        error: 'Servicio de chat no disponible. OpenAI no está configurado.' 
+      });
+    }
+    
     const { clientId, tenantId, assistantId } = req.client;
     const sessionId = uuidv4();
     
@@ -94,6 +100,12 @@ router.post('/session', async (req, res) => {
 // Send message to assistant
 router.post('/message', checkUsageLimit, async (req, res) => {
   try {
+    if (!openai) {
+      return res.status(503).json({ 
+        error: 'Servicio de chat no disponible. OpenAI no está configurado.' 
+      });
+    }
+    
     const { sessionId, message } = req.body;
     const { clientId, tenantId } = req.client;
     
@@ -180,6 +192,12 @@ router.post('/message', checkUsageLimit, async (req, res) => {
     
     // Run the assistant
     console.log('Creating run for thread:', session.threadId, 'with assistant:', assistantId);
+    
+    // Validate assistant ID format before calling OpenAI
+    if (!assistantId || !assistantId.startsWith('asst_')) {
+      throw new Error(`Invalid assistant ID format: '${assistantId}'. Assistant IDs must start with 'asst_'`);
+    }
+    
     const run = await openai.beta.threads.runs.create(session.threadId, {
       assistant_id: assistantId
     });

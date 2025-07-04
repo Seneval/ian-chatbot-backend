@@ -21,6 +21,7 @@ const tenantAuthRoutes = require('./api/tenant-auth');
 const tenantRegisterRoutes = require('./api/tenant-register');
 const testRoutes = require('./api/test');
 const testSentryRoutes = require('./api/test-sentry');
+const adminSetupRoutes = require('./api/adminSetup');
 
 // Import middleware
 const { validateClient } = require('./middleware/auth');
@@ -221,11 +222,24 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Middleware to protect test endpoints in production
+const protectTestEndpoints = (req, res, next) => {
+  if (process.env.NODE_ENV === 'production' && !process.env.ENABLE_TEST_ENDPOINTS) {
+    // Check for test API key if provided
+    const testApiKey = req.headers['x-test-api-key'];
+    if (!process.env.TEST_API_KEY || testApiKey !== process.env.TEST_API_KEY) {
+      return res.status(404).json({ error: 'Ruta no encontrada' });
+    }
+  }
+  next();
+};
+
 // Routes
-app.use('/api/test', testRoutes); // NO authentication required for testing
-app.use('/api/test-sentry', testSentryRoutes); // Sentry test routes
+app.use('/api/test', protectTestEndpoints, testRoutes); // Protected test endpoints
+app.use('/api/test-sentry', protectTestEndpoints, testSentryRoutes); // Protected Sentry test routes
 app.use('/api/register', tenantRegisterRoutes); // Tenant registration (no auth required)
 app.use('/api/tenant', tenantAuthRoutes); // Multi-tenant authentication
+app.use('/api/admin', adminSetupRoutes); // Admin setup (one-time use)
 app.use('/api/chat', validateClient, chatRoutes);
 app.use('/api/chat-demo', validateClient, chatDemoRoutes);
 app.use('/api/analytics', analyticsRoutes);

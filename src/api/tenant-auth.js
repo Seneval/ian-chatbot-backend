@@ -30,6 +30,10 @@ const registrationLimiter = rateLimit({
 
 // Helper function to generate JWT token
 const generateToken = (user, tenant) => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is required');
+  }
+  
   return jwt.sign(
     {
       userId: user.userId,
@@ -38,7 +42,7 @@ const generateToken = (user, tenant) => {
       role: user.role,
       tenantSlug: tenant.slug
     },
-    process.env.JWT_SECRET || 'default-secret-change-this',
+    process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
 };

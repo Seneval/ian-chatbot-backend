@@ -6,28 +6,18 @@ const { validateAdmin } = require('../middleware/auth');
 const router = express.Router();
 
 // Import MongoDB models
-let Client, User, Tenant;
+let Client, User, Tenant, AdminUser;
 try {
   Client = require('../models/Client');
   User = require('../models/User');
   Tenant = require('../models/Tenant');
+  AdminUser = require('../models/AdminUser');
 } catch (error) {
   console.log('⚠️  MongoDB models not available, using in-memory storage');
 }
 
 // Fallback in-memory storage if MongoDB is not available
 const inMemoryClients = {};
-
-// Admin users (still in-memory for simplicity)
-const admins = {
-  'admin': {
-    id: 'admin-001',
-    username: 'admin',
-    // Password: admin123
-    password: '$2a$10$YourHashedPasswordHere',
-    role: 'admin'
-  }
-};
 
 // Check if MongoDB is available
 const isMongoDBAvailable = () => {
@@ -61,7 +51,7 @@ router.post('/admin/login', async (req, res) => {
                 role: user.role,
                 type: 'tenant'
               },
-              process.env.ADMIN_JWT_SECRET || 'admin-secret-change-this',
+              process.env.ADMIN_JWT_SECRET,
               { expiresIn: '24h' }
             );
             
@@ -84,40 +74,63 @@ router.post('/admin/login', async (req, res) => {
       }
     }
     
-    // Fall back to legacy admin login
-    console.log('🔧 Attempting legacy admin login for:', username);
-    const admin = admins[username];
-    if (!admin) {
-      return res.status(401).json({ 
-        error: 'Credenciales inválidas. Use su email y contraseña de registro.' 
-      });
-    }
-    
-    // For demo purposes, accept 'admin123' as password
-    if (password !== 'admin123') {
-      return res.status(401).json({ 
-        error: 'Credenciales inválidas. Use su email y contraseña de registro.' 
-      });
-    }
-    
-    const token = jwt.sign(
-      { 
-        id: admin.id, 
-        username: admin.username, 
-        role: admin.role,
-        type: 'legacy'
-      },
-      process.env.ADMIN_JWT_SECRET || 'admin-secret-change-this',
-      { expiresIn: '24h' }
-    );
-    
-    res.json({
-      token,
-      admin: {
-        id: admin.id,
-        username: admin.username,
-        role: admin.role
+    // Try AdminUser login
+    if (AdminUser) {
+      console.log('🔧 Attempting admin user login for:', username);
+      
+      try {
+        const adminUser = await AdminUser.findByCredentials(username);
+        if (adminUser && await adminUser.comparePassword(password)) {
+          console.log('✅ Admin user login successful');
+          
+          // Record successful login
+          await adminUser.recordLogin(req.ip, req.headers['user-agent'], true);
+          
+          // Check if ADMIN_JWT_SECRET is configured
+          if (!process.env.ADMIN_JWT_SECRET) {
+            throw new Error('ADMIN_JWT_SECRET environment variable is required');
+          }
+          
+          const token = jwt.sign(
+            { 
+              id: adminUser.adminId,
+              username: adminUser.username,
+              email: adminUser.email,
+              role: adminUser.role,
+              type: 'admin'
+            },
+            process.env.ADMIN_JWT_SECRET,
+            { expiresIn: '24h' }
+          );
+          
+          return res.json({
+            token,
+            admin: {
+              id: adminUser.adminId,
+              username: adminUser.username,
+              role: adminUser.role,
+              email: adminUser.email
+            }
+          });
+        } else {
+          // Record failed login attempt if admin exists
+          if (adminUser) {
+            await adminUser.recordLogin(req.ip, req.headers['user-agent'], false);
+          }
+        }
+      } catch (dbError) {
+        console.log('⚠️ Database error during admin login:', dbError.message);
+        if (dbError.message === 'ADMIN_JWT_SECRET environment variable is required') {
+          return res.status(500).json({ 
+            error: 'Configuración del servidor incompleta. Contacte al administrador.' 
+          });
+        }
       }
+    }
+    
+    // If we reach here, login failed
+    return res.status(401).json({ 
+      error: 'Credenciales inválidas' 
     });
   } catch (error) {
     console.error('Error in admin login:', error);
@@ -146,6 +159,13 @@ router.post('/client', validateAdmin, async (req, res) => {
     if (!businessName || !contactEmail || !assistantId) {
       return res.status(400).json({ 
         error: 'businessName, contactEmail y assistantId son requeridos' 
+      });
+    }
+    
+    // Validate assistant ID format
+    if (!assistantId.startsWith('asst_')) {
+      return res.status(400).json({
+        error: `Invalid assistant ID format: '${assistantId}'. Assistant IDs must start with 'asst_'`
       });
     }
     
@@ -210,6 +230,11 @@ router.post('/client', validateAdmin, async (req, res) => {
       savedClient = clientData;
     }
     
+    // Check if JWT_SECRET is configured
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET environment variable is required');
+    }
+    
     // Generate JWT token with client info including tenantId
     const clientToken = jwt.sign(
       { 
@@ -220,7 +245,7 @@ router.post('/client', validateAdmin, async (req, res) => {
         widgetTitle: savedClient.widgetTitle,
         widgetGreeting: savedClient.widgetGreeting
       },
-      process.env.JWT_SECRET || 'default-secret-change-this'
+      process.env.JWT_SECRET
     );
     
     // Update token in database if using MongoDB
@@ -412,6 +437,9 @@ router.put('/clients/:clientId', validateAdmin, async (req, res) => {
       
       // If widgetTitle or widgetGreeting changed, regenerate token
       if (updates.widgetTitle !== undefined || updates.widgetGreeting !== undefined) {
+        if (!process.env.JWT_SECRET) {
+          throw new Error('JWT_SECRET environment variable is required');
+        }
         const newToken = jwt.sign(
           { 
             clientId: client.clientId,
@@ -421,7 +449,7 @@ router.put('/clients/:clientId', validateAdmin, async (req, res) => {
             widgetTitle: client.widgetTitle,
             widgetGreeting: client.widgetGreeting
           },
-          process.env.JWT_SECRET || 'default-secret-change-this'
+          process.env.JWT_SECRET
         );
         client.token = newToken;
         await client.save();
@@ -458,6 +486,9 @@ router.put('/clients/:clientId', validateAdmin, async (req, res) => {
       
       // If widgetTitle or widgetGreeting changed, regenerate token
       if (updates.widgetTitle !== undefined || updates.widgetGreeting !== undefined) {
+        if (!process.env.JWT_SECRET) {
+          throw new Error('JWT_SECRET environment variable is required');
+        }
         const newToken = jwt.sign(
           { 
             clientId: client.clientId,
@@ -467,7 +498,7 @@ router.put('/clients/:clientId', validateAdmin, async (req, res) => {
             widgetTitle: client.widgetTitle,
             widgetGreeting: client.widgetGreeting
           },
-          process.env.JWT_SECRET || 'default-secret-change-this'
+          process.env.JWT_SECRET
         );
         client.token = newToken;
       }
@@ -541,6 +572,9 @@ router.post('/clients/:clientId/regenerate-token', validateAdmin, async (req, re
       const newToken = await client.regenerateToken();
       
       // Update JWT with latest client info
+      if (!process.env.JWT_SECRET) {
+        throw new Error('JWT_SECRET environment variable is required');
+      }
       const jwtToken = jwt.sign(
         { 
           clientId: client.clientId,
@@ -550,7 +584,7 @@ router.post('/clients/:clientId/regenerate-token', validateAdmin, async (req, re
           widgetTitle: client.widgetTitle,
           widgetGreeting: client.widgetGreeting
         },
-        process.env.JWT_SECRET || 'default-secret-change-this'
+        process.env.JWT_SECRET
       );
       
       client.token = jwtToken;
@@ -569,6 +603,9 @@ router.post('/clients/:clientId/regenerate-token', validateAdmin, async (req, re
         });
       }
       
+      if (!process.env.JWT_SECRET) {
+        throw new Error('JWT_SECRET environment variable is required');
+      }
       const newToken = jwt.sign(
         { 
           clientId: client.clientId,
@@ -578,7 +615,7 @@ router.post('/clients/:clientId/regenerate-token', validateAdmin, async (req, re
           widgetTitle: client.widgetTitle,
           widgetGreeting: client.widgetGreeting
         },
-        process.env.JWT_SECRET || 'default-secret-change-this'
+        process.env.JWT_SECRET
       );
       
       client.token = newToken;
@@ -593,6 +630,201 @@ router.post('/clients/:clientId/regenerate-token', validateAdmin, async (req, re
     res.status(500).json({ 
       error: 'Error al regenerar token' 
     });
+  }
+});
+
+// Get admin profile
+router.get('/admin/profile', validateAdmin, async (req, res) => {
+  try {
+    // Check if it's an AdminUser
+    if (req.admin.type === 'admin' && AdminUser) {
+      const adminUser = await AdminUser.findOne({ adminId: req.admin.id });
+      if (!adminUser) {
+        return res.status(404).json({ error: 'Admin no encontrado' });
+      }
+      
+      return res.json({
+        profile: {
+          adminId: adminUser.adminId,
+          username: adminUser.username,
+          email: adminUser.email,
+          role: adminUser.role,
+          lastLogin: adminUser.lastLogin,
+          createdAt: adminUser.createdAt,
+          type: 'admin'
+        }
+      });
+    }
+    
+    // For tenant users
+    if (req.admin.type === 'tenant' && User && Tenant) {
+      const user = await User.findOne({ userId: req.admin.id });
+      const tenant = await Tenant.findOne({ tenantId: req.admin.tenantId });
+      
+      if (!user || !tenant) {
+        return res.status(404).json({ error: 'Usuario no encontrado' });
+      }
+      
+      return res.json({
+        profile: {
+          userId: user.userId,
+          username: user.email,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          tenant: tenant.name,
+          lastLogin: user.lastLogin,
+          createdAt: user.createdAt,
+          type: 'tenant'
+        }
+      });
+    }
+    
+    res.status(400).json({ error: 'Tipo de usuario no válido' });
+  } catch (error) {
+    console.error('Error getting admin profile:', error);
+    res.status(500).json({ error: 'Error al obtener perfil' });
+  }
+});
+
+// Update admin profile
+router.put('/admin/profile', validateAdmin, async (req, res) => {
+  try {
+    const { email, username } = req.body;
+    
+    // Only AdminUsers can update their profile
+    if (req.admin.type !== 'admin' || !AdminUser) {
+      return res.status(403).json({ 
+        error: 'Solo los administradores pueden actualizar su perfil aquí' 
+      });
+    }
+    
+    const adminUser = await AdminUser.findOne({ adminId: req.admin.id });
+    if (!adminUser) {
+      return res.status(404).json({ error: 'Admin no encontrado' });
+    }
+    
+    // Check if email or username already exists
+    if (email && email !== adminUser.email) {
+      const existingEmail = await AdminUser.findOne({ 
+        email: email.toLowerCase(), 
+        adminId: { $ne: adminUser.adminId } 
+      });
+      if (existingEmail) {
+        return res.status(409).json({ error: 'Este email ya está en uso' });
+      }
+      adminUser.email = email.toLowerCase();
+    }
+    
+    if (username && username !== adminUser.username) {
+      const existingUsername = await AdminUser.findOne({ 
+        username: username.toLowerCase(), 
+        adminId: { $ne: adminUser.adminId } 
+      });
+      if (existingUsername) {
+        return res.status(409).json({ error: 'Este nombre de usuario ya está en uso' });
+      }
+      adminUser.username = username.toLowerCase();
+    }
+    
+    await adminUser.save();
+    
+    res.json({
+      message: 'Perfil actualizado exitosamente',
+      profile: {
+        adminId: adminUser.adminId,
+        username: adminUser.username,
+        email: adminUser.email,
+        role: adminUser.role
+      }
+    });
+  } catch (error) {
+    console.error('Error updating admin profile:', error);
+    res.status(500).json({ error: 'Error al actualizar perfil' });
+  }
+});
+
+// Change admin password
+router.post('/admin/change-password', validateAdmin, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ 
+        error: 'Contraseña actual y nueva son requeridas' 
+      });
+    }
+    
+    if (newPassword.length < 8) {
+      return res.status(400).json({ 
+        error: 'La nueva contraseña debe tener al menos 8 caracteres' 
+      });
+    }
+    
+    // Only AdminUsers can change password here
+    if (req.admin.type !== 'admin' || !AdminUser) {
+      return res.status(403).json({ 
+        error: 'Solo los administradores pueden cambiar su contraseña aquí' 
+      });
+    }
+    
+    const adminUser = await AdminUser.findOne({ adminId: req.admin.id });
+    if (!adminUser) {
+      return res.status(404).json({ error: 'Admin no encontrado' });
+    }
+    
+    // Verify current password
+    const isMatch = await adminUser.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Contraseña actual incorrecta' });
+    }
+    
+    // Update password (will be hashed by pre-save hook)
+    adminUser.password = newPassword;
+    await adminUser.save();
+    
+    // Record password change in login history
+    await adminUser.recordLogin(req.ip, 'Password Changed', true);
+    
+    res.json({
+      message: 'Contraseña actualizada exitosamente'
+    });
+  } catch (error) {
+    console.error('Error changing admin password:', error);
+    res.status(500).json({ error: 'Error al cambiar contraseña' });
+  }
+});
+
+// List all admin users (super_admin only)
+router.get('/admin/users', validateAdmin, async (req, res) => {
+  try {
+    // Only super_admin can list all admins
+    if (req.admin.type !== 'admin' || req.admin.role !== 'super_admin' || !AdminUser) {
+      return res.status(403).json({ 
+        error: 'Solo super administradores pueden ver la lista de administradores' 
+      });
+    }
+    
+    const admins = await AdminUser.find({}, {
+      password: 0,
+      passwordResetToken: 0,
+      passwordResetExpires: 0
+    }).sort({ createdAt: -1 });
+    
+    res.json({
+      admins: admins.map(admin => ({
+        adminId: admin.adminId,
+        username: admin.username,
+        email: admin.email,
+        role: admin.role,
+        isActive: admin.isActive,
+        lastLogin: admin.lastLogin,
+        createdAt: admin.createdAt
+      }))
+    });
+  } catch (error) {
+    console.error('Error listing admin users:', error);
+    res.status(500).json({ error: 'Error al obtener lista de administradores' });
   }
 });
 

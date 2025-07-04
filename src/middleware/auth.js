@@ -22,7 +22,10 @@ const validateClient = async (req, res, next) => {
 
     // Verify the token
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret-change-this');
+      if (!process.env.JWT_SECRET) {
+        throw new Error('JWT_SECRET environment variable is required');
+      }
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
       req.client = decoded;
       
       // Log the request for analytics
@@ -52,7 +55,10 @@ const validateAdmin = async (req, res, next) => {
       });
     }
 
-    const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET || 'admin-secret-change-this');
+    if (!process.env.ADMIN_JWT_SECRET) {
+      throw new Error('ADMIN_JWT_SECRET environment variable is required');
+    }
+    const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET);
     
     // Accept both admin and owner roles
     if (decoded.role !== 'admin' && decoded.role !== 'owner') {

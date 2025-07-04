@@ -10,8 +10,7 @@ const tenantSchema = new mongoose.Schema({
   supabaseUserId: {
     type: String,
     unique: true,
-    sparse: true, // Allow null values but ensure uniqueness when present
-    index: true
+    sparse: true // Allow null values but ensure uniqueness when present
   },
   name: {
     type: String,

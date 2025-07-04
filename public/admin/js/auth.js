@@ -9,13 +9,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const token = localStorage.getItem(AUTH_TOKEN_KEY) || sessionStorage.getItem(AUTH_TOKEN_KEY);
     
     // If on login page and has token, redirect to dashboard
-    if (token && window.location.pathname.includes('index.html')) {
+    if (token && (window.location.pathname.includes('login.html') || window.location.pathname === '/admin' || window.location.pathname === '/admin/')) {
         verifyTokenAndRedirect(token);
     }
     
     // If on dashboard and no token, redirect to login
-    if (!token && window.location.pathname.includes('dashboard.html')) {
-        window.location.href = 'index.html';
+    if (!token && (window.location.pathname.includes('dashboard.html') || window.location.pathname.includes('settings.html'))) {
+        window.location.href = '/admin/login.html';
     }
     
     // Setup login form handler
@@ -35,7 +35,7 @@ async function verifyTokenAndRedirect(token) {
         });
         
         if (response.ok) {
-            window.location.href = 'dashboard.html';
+            window.location.href = '/admin/dashboard.html';
         } else {
             localStorage.removeItem(AUTH_TOKEN_KEY);
         }
@@ -87,7 +87,7 @@ async function handleLogin(e) {
             
             // Redirect to dashboard
             setTimeout(() => {
-                window.location.href = 'dashboard.html';
+                window.location.href = '/admin/dashboard.html';
             }, 500);
         } else {
             throw new Error(data.error || 'Error al iniciar sesión');

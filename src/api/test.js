@@ -7,9 +7,9 @@ const registrationRoutes = require('./test/registration');
 const router = express.Router();
 
 // Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || 'sk-demo-key-for-development'
-});
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+}) : null;
 
 // Log OpenAI client info
 console.log('OpenAI client initialized');
@@ -17,8 +17,21 @@ console.log('OpenAI client initialized');
 // Test endpoint to verify assistant exists (NO AUTHENTICATION REQUIRED)
 router.get('/assistant/:assistantId', async (req, res) => {
   try {
+    if (!openai) {
+      return res.status(503).json({ 
+        error: 'OpenAI no está configurado. Establece OPENAI_API_KEY en las variables de entorno.' 
+      });
+    }
+    
     const { assistantId } = req.params;
     console.log('Testing assistant:', assistantId);
+    
+    // Validate assistant ID format
+    if (!assistantId || !assistantId.startsWith('asst_')) {
+      return res.status(400).json({
+        error: `Invalid assistant ID format: '${assistantId}'. Assistant IDs must start with 'asst_'`
+      });
+    }
     
     const assistant = await openai.beta.assistants.retrieve(assistantId);
     console.log('Assistant found:', assistant.name);
@@ -45,6 +58,12 @@ router.get('/assistant/:assistantId', async (req, res) => {
 // Test creating a thread
 router.get('/thread', async (req, res) => {
   try {
+    if (!openai) {
+      return res.status(503).json({ 
+        error: 'OpenAI no está configurado. Establece OPENAI_API_KEY en las variables de entorno.' 
+      });
+    }
+    
     console.log('Creating test thread...');
     const thread = await openai.beta.threads.create();
     console.log('Thread created:', thread.id);
@@ -65,6 +84,12 @@ router.get('/thread', async (req, res) => {
 // Test listing runs
 router.post('/list-runs', async (req, res) => {
   try {
+    if (!openai) {
+      return res.status(503).json({ 
+        error: 'OpenAI no está configurado. Establece OPENAI_API_KEY en las variables de entorno.' 
+      });
+    }
+    
     const { threadId } = req.body;
     console.log('Listing runs for thread:', threadId);
     
@@ -91,6 +116,12 @@ router.post('/list-runs', async (req, res) => {
 // Test the full flow
 router.post('/full-test', async (req, res) => {
   try {
+    if (!openai) {
+      return res.status(503).json({ 
+        error: 'OpenAI no está configurado. Establece OPENAI_API_KEY en las variables de entorno.' 
+      });
+    }
+    
     const { assistantId, message } = req.body;
     
     // Create thread
