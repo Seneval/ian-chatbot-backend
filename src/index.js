@@ -183,6 +183,15 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/landing/index.html'));
 });
 
+// Handle /admin and /admin/ routes
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/admin/login.html'));
+});
+
+app.get('/admin/', (req, res) => {
+  res.redirect('/admin');
+});
+
 // Redirect /register to admin registration
 app.get('/register', (req, res) => {
   res.redirect('/admin/register.html');
