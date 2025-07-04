@@ -296,7 +296,11 @@ router.get('/clients', validateAdmin, async (req, res) => {
       createdAt: client.createdAt,
       lastActive: client.lastActive,
       notes: client.notes,
-      paymentStatus: client.paymentStatus
+      paymentStatus: client.paymentStatus,
+      // Include usage and limits for per-chatbot pricing model
+      usage: client.usage,
+      limits: client.limits,
+      pricing: client.pricing
     }));
     
     res.json({ clients: clientList });

@@ -127,21 +127,6 @@ const checkUsageLimit = async (req, res, next) => {
       req.chatbotClient = client;
     }
     
-    // Also check tenant-level limits if available (for overall platform limits)
-    if (req.client?.tenantId && Tenant) {
-      const tenant = await Tenant.findOne({ tenantId: req.client.tenantId });
-      if (tenant) {
-        const limits = tenant.isWithinLimits();
-        if (!limits.dailyMessages) {
-          return res.status(429).json({ 
-            error: 'El tenant ha alcanzado su límite diario de mensajes.',
-            code: 'TENANT_DAILY_LIMIT_EXCEEDED'
-          });
-        }
-        req.tenant = tenant;
-      }
-    }
-    
     next();
   } catch (error) {
     console.error('Error checking usage limits:', error);

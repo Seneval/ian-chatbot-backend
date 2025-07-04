@@ -246,6 +246,7 @@ router.post('/message', checkUsageLimit, async (req, res) => {
       await session.incrementMessageCount();
       
       // Update client statistics (per-chatbot usage tracking)
+      // Only count user messages for usage limits
       if (req.chatbotClient) {
         await req.chatbotClient.incrementMessageCount();
       } else {
@@ -253,13 +254,6 @@ router.post('/message', checkUsageLimit, async (req, res) => {
         if (client) {
           await client.incrementMessageCount();
         }
-      }
-      
-      // Update tenant usage (both daily and monthly)
-      if (req.tenant) {
-        await req.tenant.updateUsage('currentDayMessages', 2); // User + assistant message
-        await req.tenant.updateUsage('currentMonthMessages', 2);
-        await req.tenant.updateUsage('totalMessages', 2);
       }
     } else {
       const messageId = uuidv4();
