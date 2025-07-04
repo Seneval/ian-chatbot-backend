@@ -165,6 +165,11 @@ app.use((req, res, next) => {
     if (req.path === '/') {
       return res.redirect('/admin');
     }
+    
+    // For /agencias, serve from /admin/agencias
+    if (req.path === '/agencias' || req.path === '/agencias/') {
+      return res.redirect('/admin/agencias/');
+    }
   }
   
   next();
