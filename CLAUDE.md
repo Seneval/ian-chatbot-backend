@@ -10,6 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **MongoDB**: Connected with Atlas cluster (IP whitelist required: 0.0.0.0/0 for Vercel)
 - **Widget**: Serving from `/widget.js` with personalization support
 - **Pricing Model**: Per-chatbot ($200 MXN/month per premium chatbot)
+- **Node Version**: >=16.0.0 (package.json requirement)
 
 ## Commands
 
@@ -19,21 +20,83 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Install dependencies**: `npm install` - Installs all packages including mongoose for MongoDB
 - **Clean install**: `rm -rf node_modules package-lock.json && npm install` - Resolves dependency issues
 - **Kill server**: `pkill -f "node.*ian-chatbot"` - Stops any running Node.js server
+- **Check Sentry errors**: Visit https://ian-hh.sentry.io/issues/?project=6805447972626432
+- **Run tests**: No automated tests implemented (only manual API testing endpoints)
 
 ### Deployment
 - **Deploy to Vercel**: `git push origin main` - Auto-deploys on push to main
 - **Manual deploy**: `vercel` - Deploys to production manually
 - **Preview deployment**: Push to any branch creates preview URL
 - **Check deployment**: https://ian-chatbot-backend-h6zr.vercel.app/api/health
+- **Function timeout**: 10 seconds (Vercel free tier limit)
 
 ### Testing
-- **Manual API testing**: Use `/api/test/*` endpoints (no auth required)
+- **Manual API testing**: Use `/api/test/*` endpoints (protected in production)
 - **Test OpenAI assistant**: `GET /api/test/assistant/:assistantId`
 - **Full chat flow test**: `POST /api/test/full-test`
 - **Test Sentry integration**: 
   - Status: `GET /api/test-sentry/status`
   - Trigger error: `GET /api/test-sentry/error`
   - Custom error: `GET /api/test-sentry/custom-error`
+
+## Complete Project Structure
+
+```
+/
+├── api/
+│   └── index.js                  # Vercel serverless entry point (wraps Express app)
+├── src/
+│   ├── index.js                  # Express app configuration & route mounting
+│   ├── instrument.js             # Sentry initialization (must load before app)
+│   ├── api/
+│   │   ├── adminSetup.js         # One-time admin setup endpoint
+│   │   ├── analytics.js          # Analytics & conversation viewing
+│   │   ├── auth.js               # Admin/tenant authentication & client management
+│   │   ├── chat.js               # OpenAI chat integration
+│   │   ├── health.js             # Health check endpoint
+│   │   ├── home.js               # Landing page routes
+│   │   ├── register.js           # Tenant registration
+│   │   ├── tenant-auth.js        # Tenant user authentication
+│   │   ├── tenant.js             # Tenant management
+│   │   ├── test-sentry.js        # Sentry error testing
+│   │   └── test/
+│   │       ├── models.js         # MongoDB model testing
+│   │       ├── supabase.js       # Supabase integration testing
+│   │       └── index.js          # OpenAI & auth flow testing
+│   ├── models/
+│   │   ├── AdminUser.js          # Platform super admin users
+│   │   ├── Client.js             # Chatbot instances
+│   │   ├── Message.js            # Chat messages
+│   │   ├── Session.js            # Chat sessions
+│   │   ├── Subscription.js       # Stripe subscription tracking
+│   │   ├── Tenant.js             # Organizations/companies
+│   │   └── User.js               # Tenant users
+│   ├── middleware/
+│   │   ├── auth.js               # JWT validation middleware
+│   │   ├── tenant.js             # Tenant-specific middleware
+│   │   └── usageLimit.js         # Per-chatbot usage limiting
+│   ├── config/
+│   │   └── database.js           # MongoDB connection
+│   └── admin.backup/             # Backup of old admin files (not used)
+├── public/
+│   ├── homepage/                 # Landing page files
+│   ├── admin/                    # Admin dashboard files
+│   │   ├── css/admin.css         # Admin styles
+│   │   ├── dashboard.html        # Main dashboard
+│   │   ├── login.html            # Admin login
+│   │   ├── register.html         # Tenant registration
+│   │   ├── settings.html         # Admin settings
+│   │   └── js/
+│   │       ├── api.js            # API client utilities
+│   │       ├── auth.js           # Authentication handler
+│   │       ├── dashboard.js      # Dashboard functionality
+│   │       └── settings.js       # Settings page handler
+│   └── widget.js                 # Embeddable chat widget
+├── vercel.json                   # Vercel configuration
+├── package.json                  # Dependencies & scripts
+├── .env.example                  # Example environment variables
+└── .gitignore                    # Git ignore rules
+```
 
 ## Multi-Agent Architecture
 
@@ -69,25 +132,6 @@ Frontend Dashboard → API Endpoints → MongoDB/In-Memory Storage
    Widget Embed ← Widget.js ← OpenAI Assistant
 ```
 
-### Project Structure
-```
-/
-├── api/
-│   └── index.js          # Vercel serverless entry point
-├── src/
-│   ├── index.js          # Express app configuration
-│   ├── instrument.js     # Sentry initialization
-│   ├── api/              # Route handlers
-│   ├── models/           # MongoDB/Mongoose models
-│   ├── middleware/       # Auth middleware
-│   ├── config/           # Database config
-│   └── admin/            # Admin dashboard static files
-├── public/
-│   ├── homepage/         # Landing page
-│   └── widget.js         # Embeddable chat widget
-└── vercel.json           # Vercel configuration
-```
-
 ### Database Strategy
 - **MongoDB**: Primary storage when `MONGODB_URI` is set
 - **In-Memory Fallback**: Automatic fallback when MongoDB unavailable
@@ -95,49 +139,93 @@ Frontend Dashboard → API Endpoints → MongoDB/In-Memory Storage
 
 ### Authentication Architecture
 ```
-Admin Login → ADMIN_JWT_SECRET → Admin Token → validateAdmin middleware
-Client Widget → JWT_SECRET → Client Token → validateClient middleware
-Tenant User → JWT_SECRET → Tenant Token → validateTenant middleware
+Platform Admin → AdminUser model → ADMIN_JWT_SECRET → validateAdmin
+Tenant User → User model → ADMIN_JWT_SECRET → validateTenant
+Client Widget → Client model → JWT_SECRET → validateClient
 ```
 
 ### API Routes Structure
-- `/api/auth/*` - No middleware for login, validateAdmin for client management
-- `/api/chat/*` - validateClient middleware, real OpenAI integration
-- `/api/analytics/*` - validateAdmin middleware, usage data
-- `/api/test/*` - No authentication, debugging endpoints
-- `/api/test-sentry/*` - Sentry error testing endpoints
-- `/api/register/*` - Tenant registration (no auth required)
-- `/api/tenant/*` - Multi-tenant authentication
-- `/widget.js` - Static file, embeddable chat interface
+- `/api/admin/setup` - One-time platform admin creation
+- `/api/auth/*` - Admin authentication & client management
+- `/api/chat/*` - Client chat functionality (OpenAI integration)
+- `/api/analytics/*` - Admin analytics and conversation logs
+- `/api/test/*` - Development/debugging endpoints (protected in production)
+- `/api/test-sentry/*` - Sentry error tracking tests
+- `/api/register/*` - Tenant registration flow
+- `/api/tenant/*` - Tenant user authentication
+- `/widget.js` - Static embeddable chat widget
 
-### MongoDB Models Relationships
+### Complete MongoDB Models
+
 ```
-Tenant (1) → (∞) User
-   ↓
-   (1) → (∞) Client (Chatbot) → (∞) Session → (∞) Message
-                ↓
-         Stores: plan (free/paid), pricing info, usage limits
+Platform Level:
+AdminUser (Platform super admins)
+  ├── adminId (UUID)
+  ├── username/email (unique)
+  ├── password (bcrypt hashed)
+  ├── role (super_admin/admin)
+  └── loginHistory[]
+
+Tenant Level:
+Tenant (Organizations)
+  ├── tenantId (UUID)
+  ├── slug (unique URL identifier)
+  ├── supabaseUserId (optional)
+  └── subscription info
+
+User (Tenant users)
+  ├── userId (UUID)
+  ├── tenantId (reference)
+  ├── email (unique)
+  ├── role (owner/admin/member)
+  └── supabaseUserId (optional)
+
+Subscription (Stripe integration)
+  ├── stripeSubscriptionId (unique)
+  ├── tenantId (reference)
+  ├── status/plan/pricing
+  └── billing details
+
+Client (Chatbots)
+  ├── clientId (UUID)
+  ├── tenantId (reference)
+  ├── assistantId (OpenAI)
+  ├── plan (free/paid)
+  ├── pricing ($200 MXN/month)
+  └── usage limits & tracking
+
+Session (Chat sessions)
+  ├── sessionId (UUID)
+  ├── clientId (reference)
+  ├── threadId (OpenAI)
+  └── messageCount
+
+Message (Chat messages)
+  ├── sessionId (reference)
+  ├── role (user/assistant)
+  └── content
 ```
 
 ## Critical Implementation Details
 
-### Per-Chatbot Pricing Model (Jan 2025)
+### Per-Chatbot Pricing Model
 - **Free Plan**: 10 calls/day per chatbot, unlimited chatbots
 - **Premium Plan**: $200 MXN/month per chatbot, 1,000 calls/day
-- Client model updated with pricing structure and usage tracking
-- Middleware checks per-chatbot limits before processing messages
-- Usage tracked at chatbot level, not tenant level
+- Client model stores pricing and usage at chatbot level
+- `checkUsageLimit` middleware enforces per-chatbot limits
+- Usage resets daily (cron-like check on each request)
 
 ### Widget Personalization Flow
 1. Admin creates client with `widgetTitle` and `widgetGreeting`
-2. Backend generates widget code with `data-title` and `data-greeting` attributes
+2. Backend generates widget code with `data-title` and `data-greeting`
 3. Widget.js reads these attributes and displays personalized UI
 4. Token includes these values for runtime access
 
 ### CORS Configuration
 - Hardcoded origins in `src/index.js` include main domains
-- `ALLOWED_ORIGINS` env var adds additional origins dynamically
-- Widget uses `Access-Control-Allow-Origin: *` for broad compatibility
+- `ALLOWED_ORIGINS` env var adds additional origins (comma-separated)
+- Widget endpoint uses `Access-Control-Allow-Origin: *` for broad compatibility
+- Trust proxy enabled for Vercel deployment
 
 ### Session Management
 1. Widget calls `POST /api/chat/session` → creates OpenAI thread
@@ -146,70 +234,82 @@ Tenant (1) → (∞) User
 4. OpenAI maintains conversation context via threads
 5. Daily usage limits enforced per chatbot
 
+### Admin Setup Flow (One-time)
+1. Set `ADMIN_SETUP_KEY` in environment
+2. POST to `/api/admin/setup` with header `x-admin-setup-key`
+3. Creates first super_admin user
+4. Remove `ADMIN_SETUP_KEY` after setup
+5. All future admins created through settings page
+
+### Supabase Integration (Optional)
+- Used for tenant authentication if `SUPABASE_URL` and `SUPABASE_ANON_KEY` are set
+- Falls back to JWT-only auth if Supabase unavailable
+- Tenants can have hybrid auth (some Supabase, some JWT-only)
+- `supabaseUserId` field links tenant/user to Supabase auth
+
 ### Environment Variables
+
 Required:
-- `OPENAI_API_KEY` - Powers chat functionality
-- `JWT_SECRET` - Signs client tokens
-- `ADMIN_JWT_SECRET` - Signs admin tokens
+- `OPENAI_API_KEY` - OpenAI API access
+- `JWT_SECRET` - Client token signing
+- `ADMIN_JWT_SECRET` - Admin token signing
 
 Optional but recommended:
-- `MONGODB_URI` - Enables persistence (must include database name: `/ian-chatbot`)
-- `ALLOWED_ORIGINS` - Additional CORS domains (comma-separated)
-- `WIDGET_URL` - Override default widget URL
-- `SENTRY_DSN` - Error tracking (get from https://ian-hh.sentry.io)
+- `MONGODB_URI` - MongoDB connection (include database name)
+- `SENTRY_DSN` - Error tracking
+- `ALLOWED_ORIGINS` - Additional CORS origins
+- `WIDGET_URL` - Custom widget URL
+
+Security & Setup:
+- `ADMIN_SETUP_KEY` - One-time admin creation key
+- `TEST_API_KEY` - Protect test endpoints in production
+- `ENABLE_TEST_ENDPOINTS` - Force enable test endpoints
+
+Supabase (optional):
+- `SUPABASE_URL` - Supabase project URL
+- `SUPABASE_ANON_KEY` - Supabase anonymous key
+
+Rate Limiting:
+- `RATE_LIMIT_MAX` - Max requests per window (default: 100)
+- `RATE_LIMIT_WINDOW` - Window in minutes (default: 15)
 
 ## Common Issues & Solutions
 
-### Sentry Initialization Bug (Fixed Jan 2025)
-**Problem**: Sentry wasn't initializing because `require('dotenv').config()` was called AFTER `require('./instrument')`.
+### Assistant ID Validation
+OpenAI assistant IDs must start with 'asst_'. Validation added in:
+- `/api/test/assistant/:assistantId`
+- `/api/chat/message` 
+- `/api/auth/client` (creation)
 
-**Solution**: In `src/index.js`, moved dotenv to the first line:
-```javascript
-// Load environment variables FIRST
-require('dotenv').config();
+### Sentry Initialization Order
+`require('dotenv').config()` must come before `require('./instrument')` in src/index.js
 
-// Initialize Sentry AFTER environment variables are loaded
-require('./instrument');
-```
+### MongoDB Duplicate Index Warnings
+Remove manual `.index()` calls for fields with `unique: true` - unique constraint creates index automatically
 
-**Key Learning**: Environment variables must be loaded before any module that depends on them.
-
-### Route Naming Conflicts
-Frontend expects singular routes (`/client`, `/session`, `/message`) while some MongoDB examples use plural. Always use singular to match frontend expectations.
+### Route Naming
+Frontend expects singular routes (`/client` not `/clients`)
 
 ### Token Regeneration
-When `widgetTitle` or `widgetGreeting` changes, the token must be regenerated to include new values in the JWT payload.
+When `widgetTitle` or `widgetGreeting` changes, regenerate token to include new JWT payload values
 
-### Widget Integration
-Widget expects exact attribute names: `data-client-token`, `data-title`, `data-greeting`. The backend must generate these exactly.
+### Trust Proxy Warning
+Express app has `trust proxy: true` for Vercel deployment - required for proper IP detection behind proxy
 
-### Dashboard Form Errors
-The dashboard expects these exact field IDs: `businessName`, `contactEmail`, `plan`, `assistantId`. Removed `monthlyMessageLimit` field after switching to per-chatbot pricing.
-
-### Vercel Deployment Issues
-Common causes and solutions:
-1. **Invalid package versions**: 
-   - bcryptjs must be ^2.4.3 (not 3.0.0+)
-   - Express must be v4 (not v5 beta)
-2. **Runtime configuration**: 
-   - Use `@vercel/node@2.0.0` in vercel.json
-   - Node version: >=16.0.0
-3. **Serverless setup**:
-   - App is wrapped via `/api/index.js` entry point
-   - Sentry initialized in `/src/instrument.js` before app loads
-   - Server doesn't listen in production (check for VERCEL env)
-4. **Missing files**: Ensure all static files are included in deployment
+### Test Endpoint Protection
+In production, test endpoints return 404 unless:
+- `ENABLE_TEST_ENDPOINTS=true` OR
+- Request includes header `x-test-api-key` matching `TEST_API_KEY` env var
 
 ## Version Control & Recovery
 
-**Current Stable Version**: `v5.0-stable` - Per-chatbot pricing model with Sentry fix
+**Current Version**: Latest updates include security hardening and admin management
 
-### Available Stable Versions
-- `v5.0-stable` - Current: Per-chatbot pricing + Sentry fix
-- `v4.1-stable` - Sentry + Admin subdomain + Analytics
-- `v3.1-stable` - Admin subdomain + Analytics  
-- `v2.0-stable` - MongoDB + Widget personalization
-- `v1.0-stable` - Basic functionality
+### Creating Stable Version
+```bash
+git tag -a vX.X-stable -m "Description"
+git push origin vX.X-stable
+```
 
 ### Emergency Recovery
 ```bash
@@ -217,206 +317,67 @@ git checkout v5.0-stable
 git push --force origin main
 ```
 
-### Creating New Stable Version
-```bash
-git tag -a vX.X-stable -m "Description"
-git push origin vX.X-stable
-```
-
-## Development Workflow
-
-1. **Feature Development**: Work on `main` branch
-2. **Testing**: Use local MongoDB or rely on in-memory fallback
-3. **Deployment**: Push to GitHub → Auto-deploy to Vercel
-4. **Rollback**: Use git tags to revert to stable versions
-
 ## Recent Architecture Decisions
 
-### Per-Chatbot Pricing Model (Jan 2025)
-- Switched from tenant-based to per-chatbot pricing
-- Updated Client model with `plan` (free/paid) and `pricing` object
-- Added daily/monthly usage tracking per chatbot
-- Modified `checkUsageLimit` middleware to check chatbot limits
-- Updated landing page and dashboard to reflect new pricing
+### Security Hardening (Jan 2025)
+- Removed all hardcoded credentials
+- Added AdminUser model for platform admins
+- One-time setup flow for first admin
+- No JWT fallback secrets
+- Test endpoint protection
+
+### Per-Chatbot Pricing (Jan 2025)
+- Switched from tenant to per-chatbot pricing
+- $200 MXN/month per premium chatbot
+- Daily/monthly usage tracking per chatbot
 
 ### Sentry Integration (Jan 2025)
-- Added `@sentry/node` for error tracking
-- Separate `instrument.js` for early initialization in serverless
-- Custom test endpoints in `/api/test-sentry/*`
-- Captures console errors, unhandled rejections, and custom contexts
-- **Critical**: Fixed initialization order bug by loading dotenv first
+- Early initialization in `instrument.js`
+- Captures unhandled errors and console warnings
+- Custom test endpoints for verification
 
 ### Admin Subdomain (Jan 2025)
-- Configured admin.inteligenciaartificialparanegocios.com
-- Auto-redirect from subdomain root to /admin
-- Added to CORS allowed origins
-- DNS: CNAME to cname.vercel-dns.com
-
-### Analytics Implementation (Dec 2024)
-- Complete conversation log viewing system
-- Modal-based UI for viewing session details
-- Admin-only access via validateAdmin middleware
-
-### MongoDB Integration (Dec 2024)
-- Added mongoose models while maintaining in-memory compatibility
-- All routes support dual storage to ensure zero downtime during migration
-- Must whitelist IPs in MongoDB Atlas (0.0.0.0/0 for Vercel)
-
-### Widget Personalization (Dec 2024)
-- Added `widgetTitle` and `widgetGreeting` to Client model
-- Widget code generation includes these as data attributes
-- Frontend can update these via PUT `/api/auth/client/:clientId`
-
-### CORS Enhancement (Dec 2024)
-- Added GitHub Pages support for testing
-- Implemented environment variable for dynamic origins
-- Maintained hardcoded list for critical domains
-- Fixed callback handling for proper CORS rejection
-
-## Known Issues (from Sentry)
-
-1. **Trust Proxy Warning** (IAN-CHATBOT-BACKEND-6):
-   - Rate limiting bypass vulnerability due to `trust proxy: true`
-   - Need to configure proper proxy trust settings for Vercel
-
-2. **Missing demo.html** (IAN-CHATBOT-BACKEND-3):
-   - Root route tries to serve non-existent demo.html
-   - Need to add file or change default route
-
-3. **Punycode Deprecation Warning**:
-   - Node.js deprecation warning from dependencies
-   - Harmless but shows in logs/Sentry
-   - Will be fixed when packages update
+- admin.inteligenciaartificialparanegocios.com
+- Auto-redirects to /admin
+- CNAME to cname.vercel-dns.com
 
 ## Important Notes
 
-- Always maintain backward compatibility with existing widgets
-- Spanish error messages are intentional for target market
+- Always maintain backward compatibility with deployed widgets
+- Spanish error messages are intentional for Mexican market
 - Rate limiting is per-IP, not per-client
 - OpenAI threads are not reused between sessions
-- CLAUDE.md should always be in .gitignore
 - Never include Co-Authored-By Claude in git commits
-- When creating chatbots locally, they won't work with production widget
+- Test endpoints accessible in development, protected in production
+- Platform admins (AdminUser) are separate from tenant users
+- Widget CORS allows all origins for embed compatibility
 
-## Multi-Tenant Architecture
+## Dependencies & Versions
 
-### Models Added
-- `Tenant` - Organization with subscription info
-- `User` - Tenant users with roles (owner, admin, member)
-- Added `tenantId` to Client, Session, Message models
+Production:
+- `@sentry/node`: ^9.34.0 - Error tracking
+- `@supabase/supabase-js`: ^2.50.3 - Optional tenant auth
+- `bcryptjs`: ^2.4.3 - Password hashing (NOT 3.x - breaks on Vercel)
+- `cors`: ^2.8.5 - CORS handling
+- `express`: ^4.21.2 - Web framework (NOT v5 beta)
+- `express-rate-limit`: ^7.5.1 - Rate limiting
+- `jsonwebtoken`: ^9.0.2 - JWT tokens
+- `mongoose`: ^8.16.1 - MongoDB ODM
+- `openai`: ^5.7.0 - OpenAI API client
+- `uuid`: ^11.1.0 - UUID generation
 
-### Middleware Added
-- `validateTenant` - Validates tenant user tokens
-- `validateTenantOwner` - Owner-only operations
-- `validateSuperAdmin` - Platform administration
+Development:
+- `nodemon`: ^3.1.0 - Auto-reload in development
 
-### Endpoints Added
-- `POST /api/register/register` - Create tenant + owner user
-- `POST /api/tenant/login` - Tenant user login
-- `GET /api/tenant/me` - Current user info
-- Tenant-scoped client management endpoints
+## Security Considerations
 
-### Current Tenant Plans (Not active - using per-chatbot pricing)
-- **Trial**: 5 clients, 1 user, 1,000 messages/month
-- **Starter**: 50 clients, 3 users, 100,000 messages/month
-- **Pro**: 200 clients, 10 users, 500,000 messages/month
-- **Enterprise**: 1,000 clients, 50 users, 2,000,000 messages/month
-
-## Page Structure & Routes
-
-### Domain Overview
-1. **inteligenciaartificialparanegocios.com** - Main domain
-2. **admin.inteligenciaartificialparanegocios.com** - Admin subdomain
-3. **ian-chatbot-backend-h6zr.vercel.app** - Vercel production deployment
-
-### Complete Page Structure
-
-```
-inteligenciaartificialparanegocios.com/
-├── / (root)
-│   └── Landing page de ventas (public/homepage/index.html)
-│       - Target: Agencias, freelancers, creadores de chatbots
-│       - Pricing: $200 MXN/mes por chatbot premium
-│       - CTAs llevan a registro
-│
-├── /homepage
-│   └── Misma landing page (ruta alternativa)
-│
-├── /register
-│   └── Redirect a → /admin/register.html
-│
-├── /admin
-│   ├── /admin (login)
-│   │   └── Página de login (src/admin/index.html)
-│   │       - Login para administradores/owners
-│   │       - Redirect a dashboard después de auth
-│   │
-│   ├── /admin/dashboard.html
-│   │   └── Dashboard principal (src/admin/dashboard.html)
-│   │       - Gestión de chatbots
-│   │       - Analytics y métricas
-│   │       - Configuración de clientes
-│   │       - Requiere autenticación
-│   │
-│   ├── /admin/register.html
-│   │   └── Registro de nuevos tenants (src/admin/register.html)
-│   │       - Crear cuenta de empresa
-│   │       - Información del owner
-│   │       - Sin auth requerida
-│   │
-│   └── /admin/agencias/
-│       └── Landing para agencias (src/admin/agencias/index.html)
-│           - Versión de ventas enfocada en agencias
-│           - Misma estructura que homepage
-│           - CSS local incluido
-│
-├── /test-chat?token=XXX
-│   └── Página de prueba del widget
-│       - Generada dinámicamente
-│       - Requiere token válido
-│
-├── /widget.js
-│   └── Script del widget embebible (public/widget.js)
-│       - Se incluye en sitios de clientes
-│       - Maneja toda la UI del chat
-│
-└── /api/*
-    └── Endpoints de la API REST
-        - /api/auth/* - Autenticación
-        - /api/chat/* - Funcionalidad del chat
-        - /api/analytics/* - Métricas
-        - /api/test/* - Testing
-```
-
-### Admin Subdomain Routes
-```
-admin.inteligenciaartificialparanegocios.com/
-├── / → Redirige a /admin
-├── /agencias → Redirige a /admin/agencias/
-└── [Todas las demás rutas funcionan igual que el dominio principal]
-```
-
-### User Flows
-
-1. **Nuevo visitante (Agencia/Freelancer)**:
-   - Llega a landing (/) → Lee beneficios → Click "Empezar Gratis"
-   - Va a /admin/register.html → Crea cuenta → Dashboard
-
-2. **Cliente existente**:
-   - Va directo a /admin → Login → /admin/dashboard.html
-   - O usa admin.inteligenciaartificialparanegocios.com
-
-3. **Agencia explorando**:
-   - Visita /admin/agencias → Info específica para agencias
-   - Click en CTA → /admin/register.html
-
-4. **Usuario final del chatbot**:
-   - No visita nuestro sitio
-   - Interactúa vía widget.js embebido en sitio del cliente
-
-### File Locations
-- **Landing pages**: `/public/homepage/` y `/src/admin/agencias/`
-- **Admin interface**: `/src/admin/`
-- **Widget**: `/public/widget.js`
-- **API**: `/src/api/`
-- **Backups**: `/src/admin.backup/` (no se usan)
+- All admin operations require valid JWT with proper role
+- Client tokens include tenantId for data isolation
+- Passwords hashed with bcrypt (10 rounds)
+- Rate limiting prevents brute force attacks
+- MongoDB connection uses connection string auth
+- Supabase provides additional auth layer (optional)
+- Test endpoints protected in production
+- No hardcoded secrets or credentials
+- Environment variables required for all sensitive config
+- Trust proxy enabled for Vercel deployment

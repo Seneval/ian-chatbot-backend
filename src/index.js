@@ -53,8 +53,17 @@ const initializeDatabase = async () => {
       console.log('⚠️  MONGODB_URI not found, using in-memory storage');
     }
   } catch (error) {
-    console.error('❌ Database connection failed:', error);
+    console.error('❌ Database connection failed:', error.message);
+    
+    // Check if it's an IP whitelist error
+    if (error.message && error.message.includes('whitelist')) {
+      console.error('🔒 MongoDB Atlas IP Whitelist Issue Detected!');
+      console.error('   To fix: Go to MongoDB Atlas → Network Access → Add IP Address → Add 0.0.0.0/0');
+      console.error('   This allows connections from any IP (required for Vercel)');
+    }
+    
     console.log('⚠️  Falling back to in-memory storage');
+    console.log('   Note: Data will not persist between deployments');
   }
 };
 
@@ -350,12 +359,52 @@ app.get('/test-chat', (req, res) => {
   res.send(html);
 });
 
+// Helper function to set CORS headers on error responses
+const setCORSHeaders = (req, res) => {
+  const origin = req.headers.origin;
+  if (!origin) return;
+  
+  // Check if origin is allowed using the same logic as corsOptions
+  const hardcodedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'https://ianwebsite.vercel.app',
+    'https://ianwebsite-git-dev-patricios-projects-fbd72f4d.vercel.app',
+    'https://ian-chatbot-backend.vercel.app',
+    'https://ianchatbotbackend.vercel.app',
+    'https://ian-chatbot-backend-h6zr.vercel.app',
+    'https://seneval.github.io',
+    'https://inteligenciaartificialparanegocios.com',
+    'https://www.inteligenciaartificialparanegocios.com',
+    'https://admin.inteligenciaartificialparanegocios.com',
+  ];
+  
+  const envOrigins = process.env.ALLOWED_ORIGINS 
+    ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
+    : [];
+  
+  const allowedOrigins = [...hardcodedOrigins, ...envOrigins];
+  
+  // Check if origin is allowed or matches Vercel preview pattern
+  const isAllowed = allowedOrigins.includes(origin) || /^https:\/\/.*\.vercel\.app$/.test(origin);
+  
+  if (isAllowed) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-client-token, x-admin-setup-key, x-test-api-key');
+  }
+};
+
 // Sentry error handler - MUST be before any other error middleware
 Sentry.setupExpressErrorHandler(app);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
+  
+  // Set CORS headers for error responses
+  setCORSHeaders(req, res);
   
   res.status(500).json({ 
     error: 'Algo salió mal', 
@@ -365,6 +414,9 @@ app.use((err, req, res, next) => {
 
 // 404 handler
 app.use((req, res) => {
+  // Set CORS headers for 404 responses
+  setCORSHeaders(req, res);
+  
   res.status(404).json({ error: 'Ruta no encontrada' });
 });
 
