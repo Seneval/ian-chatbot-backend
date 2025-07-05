@@ -60,8 +60,10 @@ const validateAdmin = async (req, res, next) => {
     }
     const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET);
     
-    // Accept both admin and owner roles
-    if (decoded.role !== 'admin' && decoded.role !== 'owner') {
+    // Accept admin, super_admin, and owner roles
+    const allowedRoles = ['admin', 'super_admin', 'owner'];
+    if (!allowedRoles.includes(decoded.role)) {
+      console.log(`❌ Access denied for role: ${decoded.role}`);
       return res.status(403).json({ 
         error: 'Acceso denegado' 
       });
