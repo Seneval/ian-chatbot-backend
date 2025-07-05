@@ -1089,3 +1089,27 @@ a:hover {
         max-width: none;
     }
 }
+
+/* Tenant badge */
+.tenant-badge:hover {
+    background: var(--primary-light) !important;
+    color: var(--primary) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Tenant filter indicator */
+.tenant-filter-indicator {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

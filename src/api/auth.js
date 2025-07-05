@@ -288,6 +288,7 @@ router.post('/client', validateAdmin, async (req, res) => {
 router.get('/clients', validateAdmin, async (req, res) => {
   try {
     let clients;
+    let tenantMap = {}; // Map to store tenant info
     
     if (isMongoDBAvailable()) {
       // Use MongoDB
@@ -298,6 +299,25 @@ router.get('/clients', validateAdmin, async (req, res) => {
       } else {
         // Admin: see all clients
         clients = await Client.find({}).sort({ createdAt: -1 });
+        
+        // If super_admin, fetch tenant information
+        if (req.admin.role === 'super_admin' && Tenant) {
+          // Get unique tenant IDs from clients
+          const tenantIds = [...new Set(clients.map(c => c.tenantId).filter(Boolean))];
+          
+          // Fetch all tenants in one query
+          const tenants = await Tenant.find({ tenantId: { $in: tenantIds } });
+          
+          // Create a map for quick lookup
+          tenants.forEach(tenant => {
+            tenantMap[tenant.tenantId] = {
+              tenantId: tenant.tenantId,
+              name: tenant.name,
+              slug: tenant.slug,
+              email: tenant.email
+            };
+          });
+        }
       }
     } else {
       // Use in-memory storage
@@ -307,28 +327,41 @@ router.get('/clients', validateAdmin, async (req, res) => {
       }
     }
     
-    const clientList = clients.map(client => ({
-      id: client.clientId,
-      businessName: client.businessName,
-      contactEmail: client.email || client.contactEmail,
-      contactPerson: client.contactPerson,
-      plan: client.plan,
-      status: client.isActive ? 'active' : 'inactive',
-      currentMonthMessages: client.currentMonthMessages,
-      monthlyMessageLimit: client.monthlyMessageLimit,
-      totalMessages: client.totalMessages,
-      totalSessions: client.totalSessions,
-      createdAt: client.createdAt,
-      lastActive: client.lastActive,
-      notes: client.notes,
-      paymentStatus: client.paymentStatus,
-      // Include usage and limits for per-chatbot pricing model
-      usage: client.usage,
-      limits: client.limits,
-      pricing: client.pricing
-    }));
+    const clientList = clients.map(client => {
+      const baseClient = {
+        id: client.clientId,
+        businessName: client.businessName,
+        contactEmail: client.email || client.contactEmail,
+        contactPerson: client.contactPerson,
+        plan: client.plan,
+        status: client.isActive ? 'active' : 'inactive',
+        currentMonthMessages: client.currentMonthMessages,
+        monthlyMessageLimit: client.monthlyMessageLimit,
+        totalMessages: client.totalMessages,
+        totalSessions: client.totalSessions,
+        createdAt: client.createdAt,
+        lastActive: client.lastActive,
+        notes: client.notes,
+        paymentStatus: client.paymentStatus,
+        // Include usage and limits for per-chatbot pricing model
+        usage: client.usage,
+        limits: client.limits,
+        pricing: client.pricing
+      };
+      
+      // Add tenant info only for super_admin
+      if (req.admin.role === 'super_admin' && client.tenantId && tenantMap[client.tenantId]) {
+        baseClient.tenantInfo = tenantMap[client.tenantId];
+      }
+      
+      return baseClient;
+    });
     
-    res.json({ clients: clientList });
+    // Include user role in response for frontend
+    res.json({ 
+      clients: clientList,
+      userRole: req.admin.role 
+    });
   } catch (error) {
     console.error('Error getting clients:', error);
     res.status(500).json({ 

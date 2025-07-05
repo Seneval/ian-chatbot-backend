@@ -2,6 +2,8 @@
 let clients = [];
 let currentClientId = null;
 let currentWidgetCode = '';
+let currentTenantFilter = null; // Track current tenant filter for super admins
+let userRole = null; // Store user role from API response
 
 // Initialize dashboard when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -51,6 +53,89 @@ function setupEventListeners() {
     });
 }
 
+// Update table headers for super admin
+function updateTableHeadersForSuperAdmin() {
+    const tableHead = document.querySelector('#clientsTable thead tr');
+    if (!tableHead) return;
+    
+    // Check if tenant column already exists
+    const headers = tableHead.querySelectorAll('th');
+    const hasTenantColumn = Array.from(headers).some(th => th.textContent.includes('Tenant'));
+    
+    if (!hasTenantColumn) {
+        // Add tenant column after Email column
+        const emailHeader = Array.from(headers).find(th => th.textContent === 'Email');
+        if (emailHeader) {
+            const tenantHeader = document.createElement('th');
+            tenantHeader.textContent = 'Tenant';
+            tenantHeader.className = 'hide-mobile'; // Hide on mobile for better UX
+            emailHeader.insertAdjacentElement('afterend', tenantHeader);
+        }
+    }
+}
+
+// Filter clients by tenant
+function filterByTenant(tenantId, tenantName) {
+    currentTenantFilter = { tenantId, tenantName };
+    
+    // Show filter indicator
+    showTenantFilter(tenantName);
+    
+    // Filter and re-render clients
+    const filteredClients = clients.filter(client => 
+        client.tenantInfo && client.tenantInfo.tenantId === tenantId
+    );
+    
+    renderClients(filteredClients);
+}
+
+// Clear tenant filter
+function clearTenantFilter() {
+    currentTenantFilter = null;
+    hideTenantFilter();
+    renderClients(clients);
+}
+
+// Show tenant filter indicator
+function showTenantFilter(tenantName) {
+    // Remove existing filter indicator if any
+    const existingFilter = document.querySelector('.tenant-filter-indicator');
+    if (existingFilter) {
+        existingFilter.remove();
+    }
+    
+    // Create filter indicator
+    const filterIndicator = document.createElement('div');
+    filterIndicator.className = 'tenant-filter-indicator';
+    filterIndicator.innerHTML = `
+        <span>Filtrando por tenant: <strong>${tenantName}</strong></span>
+        <button class="btn btn-sm" onclick="clearTenantFilter()">✕ Limpiar filtro</button>
+    `;
+    filterIndicator.style.cssText = `
+        background: var(--primary-light, #e3f2fd);
+        padding: 8px 16px;
+        margin-bottom: 16px;
+        border-radius: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    `;
+    
+    // Insert before table
+    const tableContainer = document.querySelector('.table-container');
+    if (tableContainer) {
+        tableContainer.insertBefore(filterIndicator, tableContainer.firstChild);
+    }
+}
+
+// Hide tenant filter indicator
+function hideTenantFilter() {
+    const filterIndicator = document.querySelector('.tenant-filter-indicator');
+    if (filterIndicator) {
+        filterIndicator.remove();
+    }
+}
+
 // Load dashboard statistics
 async function loadDashboardData() {
     try {
@@ -97,11 +182,17 @@ async function loadClients() {
     emptyState.style.display = 'none';
     
     try {
-        const { clients: clientsData } = await adminAPI.getClients();
-        clients = clientsData;
+        const response = await adminAPI.getClients();
+        clients = response.clients;
+        userRole = response.userRole; // Store user role from response
         
         // Hide loading
         loadingState.style.display = 'none';
+        
+        // Update table headers for super admin
+        if (userRole === 'super_admin') {
+            updateTableHeadersForSuperAdmin();
+        }
         
         if (clients.length === 0) {
             emptyState.style.display = 'block';
@@ -137,6 +228,24 @@ function renderClients(clientsList) {
             : (client.limits?.messagesPerMonth || 30000);
         const usagePercent = (messageUsage / messageLimit) * 100;
         
+        // Build tenant column for super admins
+        const tenantColumn = userRole === 'super_admin' && client.tenantInfo ? `
+            <td class="hide-mobile">
+                <span class="tenant-badge" 
+                      onclick="filterByTenant('${client.tenantInfo.tenantId}', '${client.tenantInfo.name}')"
+                      style="cursor: pointer; 
+                             background: var(--gray-100); 
+                             padding: 4px 12px; 
+                             border-radius: 12px; 
+                             font-size: 0.9em;
+                             color: var(--gray-700);
+                             display: inline-block;
+                             transition: all 0.2s;">
+                    🏢 ${client.tenantInfo.name}
+                </span>
+            </td>
+        ` : (userRole === 'super_admin' ? '<td class="hide-mobile">-</td>' : '');
+        
         return `
             <tr>
                 <td>
@@ -144,6 +253,7 @@ function renderClients(clientsList) {
                     ${client.contactPerson ? `<br><small>${client.contactPerson}</small>` : ''}
                 </td>
                 <td>${client.contactEmail || client.email || '-'}</td>
+                ${tenantColumn}
                 <td>
                     <span class="badge badge-${getPlanBadgeClass(plan)}">
                         ${plan.charAt(0).toUpperCase() + plan.slice(1)}
@@ -227,10 +337,21 @@ function toggleDropdown(event, clientId) {
 function handleSearch() {
     const searchTerm = document.getElementById('searchInput').value.toLowerCase();
     
-    const filteredClients = clients.filter(client => 
+    // Start with all clients or filtered by tenant if filter is active
+    let searchBase = clients;
+    if (currentTenantFilter && userRole === 'super_admin') {
+        searchBase = clients.filter(client => 
+            client.tenantInfo && client.tenantInfo.tenantId === currentTenantFilter.tenantId
+        );
+    }
+    
+    // Apply search filter
+    const filteredClients = searchBase.filter(client => 
         client.businessName.toLowerCase().includes(searchTerm) ||
         (client.contactEmail && client.contactEmail.toLowerCase().includes(searchTerm)) ||
-        (client.contactPerson && client.contactPerson.toLowerCase().includes(searchTerm))
+        (client.contactPerson && client.contactPerson.toLowerCase().includes(searchTerm)) ||
+        (userRole === 'super_admin' && client.tenantInfo && 
+         client.tenantInfo.name.toLowerCase().includes(searchTerm))
     );
     
     renderClients(filteredClients);

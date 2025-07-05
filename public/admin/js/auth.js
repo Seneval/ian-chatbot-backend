@@ -141,10 +141,42 @@ const authenticatedFetch = (url, options = {}) => {
     });
 };
 
+// Parse JWT token to get user info
+function parseJWT(token) {
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        
+        return JSON.parse(jsonPayload);
+    } catch (error) {
+        console.error('Error parsing JWT:', error);
+        return null;
+    }
+}
+
+// Get current user info from token
+function getUserInfo() {
+    const token = getToken();
+    if (!token) return null;
+    
+    return parseJWT(token);
+}
+
+// Check if current user is super admin
+function isSuperAdmin() {
+    const userInfo = getUserInfo();
+    return userInfo && userInfo.role === 'super_admin';
+}
+
 // Export for use in other files
 window.adminAuth = {
     getToken,
     logout,
     authenticatedFetch,
+    getUserInfo,
+    isSuperAdmin,
     API_BASE_URL
 };
