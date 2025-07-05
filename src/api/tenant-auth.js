@@ -3,11 +3,13 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const rateLimit = require('express-rate-limit');
+const crypto = require('crypto');
 
 const Tenant = require('../models/Tenant');
 const User = require('../models/User');
 const Subscription = require('../models/Subscription');
 const { validateTenant, validateTenantOwner, validateTenantAdmin } = require('../middleware/tenant');
+const emailService = require('../services/email');
 
 const router = express.Router();
 
@@ -235,11 +237,13 @@ router.post('/login', authLimiter, async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        lastLogin: user.lastLogin
+        lastLogin: user.lastLogin,
+        emailVerified: user.emailVerified
       },
       token,
       subscriptionActive: tenant.isSubscriptionActive(),
-      trialDaysLeft: tenant.subscription.status === 'trialing' ? tenant.daysUntilTrialEnd() : null
+      trialDaysLeft: tenant.subscription.status === 'trialing' ? tenant.daysUntilTrialEnd() : null,
+      requiresEmailVerification: !user.emailVerified
     });
 
   } catch (error) {
@@ -273,7 +277,8 @@ router.get('/me', validateTenant, async (req, res) => {
         role: req.user.role,
         avatar: req.user.avatar,
         preferences: req.user.preferences,
-        lastLogin: req.user.lastLogin
+        lastLogin: req.user.lastLogin,
+        emailVerified: req.user.emailVerified
       },
       subscriptionActive: req.tenant.isSubscriptionActive(),
       trialDaysLeft: req.tenant.subscription.status === 'trialing' ? req.tenant.daysUntilTrialEnd() : null
@@ -397,6 +402,140 @@ router.post('/logout', validateTenant, async (req, res) => {
   res.json({
     message: 'Sesión cerrada exitosamente'
   });
+});
+
+// Email verification endpoint
+router.get('/verify-email/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    
+    // Find user with this verification token
+    const user = await User.findOne({
+      emailVerificationToken: token,
+      emailVerificationExpires: { $gt: Date.now() }
+    });
+    
+    if (!user) {
+      return res.status(400).send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Error de Verificación</title>
+          <style>
+            body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f5f5f5; }
+            .container { text-align: center; padding: 40px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            h1 { color: #E74C3C; }
+            a { color: #4A90E2; text-decoration: none; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h1>❌ Error de Verificación</h1>
+            <p>El enlace de verificación es inválido o ha expirado.</p>
+            <p>Por favor, <a href="/admin/register.html">regístrate nuevamente</a> o contacta soporte.</p>
+          </div>
+        </body>
+        </html>
+      `);
+    }
+    
+    // Mark email as verified
+    user.emailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
+    await user.save();
+    
+    // Send welcome email
+    try {
+      await emailService.sendWelcomeEmail(user.email, user.name);
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError);
+    }
+    
+    // Redirect to login with success message
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Email Verificado</title>
+        <style>
+          body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f5f5f5; }
+          .container { text-align: center; padding: 40px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+          h1 { color: #27AE60; }
+          a { display: inline-block; margin-top: 20px; padding: 12px 30px; background-color: #4A90E2; color: white; text-decoration: none; border-radius: 5px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>✅ ¡Email Verificado!</h1>
+          <p>Tu cuenta ha sido verificada exitosamente.</p>
+          <p>Ya puedes acceder a todas las funciones de iAN Chatbot.</p>
+          <a href="/admin/login.html">Ir al Login</a>
+        </div>
+      </body>
+      </html>
+    `);
+  } catch (error) {
+    console.error('Error verifying email:', error);
+    res.status(500).send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Error</title>
+        <style>
+          body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f5f5f5; }
+          .container { text-align: center; padding: 40px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+          h1 { color: #E74C3C; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>❌ Error del Servidor</h1>
+          <p>Ocurrió un error al verificar tu email. Por favor, intenta más tarde.</p>
+        </div>
+      </body>
+      </html>
+    `);
+  }
+});
+
+// Resend verification email
+router.post('/resend-verification', authLimiter, async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email requerido' });
+    }
+    
+    const user = await User.findByEmail(email);
+    if (!user) {
+      // Don't reveal if user exists
+      return res.json({ 
+        message: 'Si el email existe en nuestro sistema, recibirás un correo de verificación.' 
+      });
+    }
+    
+    if (user.emailVerified) {
+      return res.status(400).json({ error: 'Este email ya está verificado' });
+    }
+    
+    // Generate new verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    user.emailVerificationToken = verificationToken;
+    user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    await user.save();
+    
+    // Send verification email
+    await emailService.sendVerificationEmail(user.email, user.name, verificationToken);
+    
+    res.json({ 
+      message: 'Email de verificación enviado. Por favor revisa tu bandeja de entrada.' 
+    });
+  } catch (error) {
+    console.error('Error resending verification:', error);
+    res.status(500).json({ error: 'Error al enviar email de verificación' });
+  }
 });
 
 module.exports = router;

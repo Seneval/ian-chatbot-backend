@@ -1,9 +1,11 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { supabase, isSupabaseAvailable } = require('../config/supabase');
 const Tenant = require('../models/Tenant');
 const User = require('../models/User');
 const Sentry = require('../instrument');
+const emailService = require('../services/email');
 
 const router = express.Router();
 
@@ -11,7 +13,7 @@ const router = express.Router();
 router.use(express.urlencoded({ extended: true }));
 
 // Register new tenant with owner user (accepts both JSON and form data)
-router.post('/register', async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { 
       companyName, 
@@ -72,12 +74,20 @@ router.post('/register', async (req, res) => {
 
     // Create owner user
     console.log('👤 Creating owner user...');
+    
+    // Generate email verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    
     const userData = {
       tenantId: tenant.tenantId,
       email: email,
       password: password, // Required field
       name: contactName,
-      role: 'owner'
+      role: 'owner',
+      emailVerified: false,
+      emailVerificationToken: verificationToken,
+      emailVerificationExpires: verificationExpires
     };
     
     // Only set supabaseUserId if it's not null
@@ -89,6 +99,15 @@ router.post('/register', async (req, res) => {
 
     await ownerUser.save();
     console.log(`✅ Owner user created: ${ownerUser.userId}`);
+    
+    // Send verification email
+    try {
+      await emailService.sendVerificationEmail(email, contactName, verificationToken);
+      console.log('📧 Verification email sent to:', email);
+    } catch (emailError) {
+      console.error('❌ Failed to send verification email:', emailError);
+      // Continue registration even if email fails
+    }
 
     // Generate legacy JWT token for immediate access
     const legacyToken = jwt.sign(
@@ -117,7 +136,8 @@ router.post('/register', async (req, res) => {
         userId: ownerUser.userId,
         name: ownerUser.name,
         email: ownerUser.email,
-        role: ownerUser.role
+        role: ownerUser.role,
+        emailVerified: ownerUser.emailVerified
       },
       authentication: {
         method: authMethod,
@@ -138,9 +158,10 @@ router.post('/register', async (req, res) => {
             `Dashboard URL: ${req.protocol}://${req.get('host')}/admin`
           ]
         : [
-            'Your account is ready to use',
+            'Your account has been created',
+            'Please check your email to verify your account',
             `Dashboard URL: ${req.protocol}://${req.get('host')}/admin`,
-            'Use the provided token for API access'
+            'You can login immediately, but some features may be limited until email verification'
           ]
     };
 
