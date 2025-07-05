@@ -108,7 +108,7 @@ async function handleLogin(e) {
 function logout() {
     localStorage.removeItem(AUTH_TOKEN_KEY);
     sessionStorage.removeItem(AUTH_TOKEN_KEY);
-    window.location.href = 'index.html';
+    window.location.href = '/admin/login.html';
 }
 
 // Get stored token

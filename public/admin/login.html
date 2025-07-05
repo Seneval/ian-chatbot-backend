@@ -33,14 +33,20 @@
                 
                 <div class="form-group">
                     <label for="password">Contraseña</label>
-                    <input 
-                        type="password" 
-                        id="password" 
-                        name="password" 
-                        required 
-                        autocomplete="current-password"
-                        placeholder="••••••••"
-                    >
+                    <div class="password-input-wrapper">
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            required 
+                            autocomplete="current-password"
+                            placeholder="••••••••"
+                        >
+                        <button type="button" class="password-toggle" onclick="togglePassword('password')" aria-label="Toggle password visibility">
+                            <span class="password-show">👁️</span>
+                            <span class="password-hide" style="display: none;">🙈</span>
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="form-group checkbox-group">
@@ -79,5 +85,24 @@
     </div>
     
     <script src="/admin/js/auth.js"></script>
+    <script>
+        // Toggle password visibility
+        function togglePassword(inputId) {
+            const input = document.getElementById(inputId);
+            const button = input.parentElement.querySelector('.password-toggle');
+            const showIcon = button.querySelector('.password-show');
+            const hideIcon = button.querySelector('.password-hide');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                showIcon.style.display = 'none';
+                hideIcon.style.display = 'inline';
+            } else {
+                input.type = 'password';
+                showIcon.style.display = 'inline';
+                hideIcon.style.display = 'none';
+            }
+        }
+    </script>
 </body>
 </html>
