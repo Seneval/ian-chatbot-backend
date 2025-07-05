@@ -41,6 +41,9 @@ if (process.env.VERCEL) {
 // Debug middleware for CORS
 app.use((req, res, next) => {
   console.log(`CORS Request: ${req.method} ${req.path} from ${req.headers.origin}`);
+  if (req.headers.origin === 'https://admin.inteligenciaartificialparanegocios.com') {
+    console.log('✅ Admin subdomain detected');
+  }
   next();
 });
 
