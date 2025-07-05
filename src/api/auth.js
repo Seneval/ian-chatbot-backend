@@ -26,6 +26,12 @@ const isMongoDBAvailable = () => {
 
 // Admin login (supports both legacy admin and tenant users)
 router.post('/admin/login', async (req, res) => {
+  // Ensure CORS headers are set
+  const origin = req.headers.origin;
+  if (origin && (origin.includes('inteligenciaartificialparanegocios.com') || origin.includes('localhost'))) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+  }
   try {
     const { username, password, email } = req.body;
     console.log('🔐 Login attempt:', { username, email, hasPassword: !!password });
