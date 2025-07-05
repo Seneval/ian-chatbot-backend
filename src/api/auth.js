@@ -149,7 +149,7 @@ router.post('/client', validateAdmin, async (req, res) => {
       assistantId,
       contactPerson,
       phone,
-      plan = 'basic',
+      plan = 'free',
       notes,
       monthlyMessageLimit = 1000,
       widgetTitle,
@@ -178,7 +178,7 @@ router.post('/client', validateAdmin, async (req, res) => {
       contactPerson,
       phone,
       assistantId,
-      plan: plan || 'free', // Default to free plan
+      plan: plan, // Will use 'free' from default parameter
       notes,
       widgetTitle: widgetTitle || 'Asistente Virtual',
       widgetGreeting: widgetGreeting || '¡Hola! 👋 Soy tu asistente virtual. ¿En qué puedo ayudarte hoy?',
