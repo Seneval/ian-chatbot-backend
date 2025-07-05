@@ -44,7 +44,7 @@ class AdminAPI {
     
     // Update client
     async updateClient(clientId, updates) {
-        const response = await this.fetch(`${this.baseURL}/auth/client/${clientId}`, {
+        const response = await this.fetch(`${this.baseURL}/auth/clients/${clientId}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -54,9 +54,17 @@ class AdminAPI {
         return this.handleResponse(response);
     }
     
+    // Delete client
+    async deleteClient(clientId) {
+        const response = await this.fetch(`${this.baseURL}/auth/clients/${clientId}`, {
+            method: 'DELETE'
+        });
+        return this.handleResponse(response);
+    }
+    
     // Regenerate client token
     async regenerateToken(clientId) {
-        const response = await this.fetch(`${this.baseURL}/auth/client/${clientId}/regenerate-token`, {
+        const response = await this.fetch(`${this.baseURL}/auth/clients/${clientId}/regenerate-token`, {
             method: 'POST'
         });
         return this.handleResponse(response);

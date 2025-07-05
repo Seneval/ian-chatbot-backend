@@ -60,18 +60,18 @@
         <!-- Clients Section -->
         <section class="clients-section">
             <div class="section-header">
-                <h2 class="section-title">🏢 Clientes</h2>
+                <h2 class="section-title">🤖 Chatbots</h2>
                 <div class="section-actions">
                     <div class="search-bar">
                         <input 
                             type="text" 
                             id="searchInput" 
-                            placeholder="Buscar clientes..."
+                            placeholder="Buscar chatbots..."
                             class="form-control"
                         >
                     </div>
                     <button class="btn btn-primary" onclick="openAddClientModal()">
-                        ➕ Nuevo Cliente
+                        ➕ Nuevo Chatbot
                     </button>
                 </div>
             </div>
@@ -99,8 +99,8 @@
                 
                 <div id="emptyState" class="empty-state" style="display: none;">
                     <div class="empty-state-icon">📭</div>
-                    <h3 class="empty-state-title">No hay clientes aún</h3>
-                    <p>Comienza agregando tu primer cliente</p>
+                    <h3 class="empty-state-title">No hay chatbots aún</h3>
+                    <p>Comienza agregando tu primer chatbot</p>
                 </div>
             </div>
         </section>
@@ -110,7 +110,7 @@
     <div class="modal" id="clientModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 class="modal-title" id="modalTitle">➕ Nuevo Cliente</h3>
+                <h3 class="modal-title" id="modalTitle">➕ Nuevo Chatbot</h3>
                 <button class="modal-close" onclick="closeModal('clientModal')">×</button>
             </div>
             <form id="clientForm">
@@ -232,7 +232,7 @@
                         Cancelar
                     </button>
                     <button type="submit" class="btn btn-primary" id="submitBtn">
-                        <span class="btn-text">✓ Crear Cliente</span>
+                        <span class="btn-text">✓ Crear Chatbot</span>
                         <span class="btn-loader" style="display: none;">
                             <svg class="spinner" viewBox="0 0 50 50">
                                 <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>

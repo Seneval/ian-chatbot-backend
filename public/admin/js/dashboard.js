@@ -205,7 +205,7 @@ async function loadClients() {
     } catch (error) {
         console.error('Error loading clients:', error);
         loadingState.style.display = 'none';
-        adminUtils.showToast('Error al cargar clientes', 'error');
+        adminUtils.showToast('Error al cargar chatbots', 'error');
     }
 }
 
@@ -360,8 +360,8 @@ function handleSearch() {
 // Open add client modal
 function openAddClientModal() {
     currentClientId = null;
-    document.getElementById('modalTitle').textContent = '➕ Nuevo Cliente';
-    document.getElementById('submitBtn').querySelector('.btn-text').textContent = '✓ Crear Cliente';
+    document.getElementById('modalTitle').textContent = '➕ Nuevo Chatbot';
+    document.getElementById('submitBtn').querySelector('.btn-text').textContent = '✓ Crear Chatbot';
     document.getElementById('clientForm').reset();
     document.getElementById('clientId').value = '';
     openModal('clientModal');
@@ -375,7 +375,7 @@ async function editClient(clientId) {
     if (!client) return;
     
     // Update modal
-    document.getElementById('modalTitle').textContent = '✏️ Editar Cliente';
+    document.getElementById('modalTitle').textContent = '✏️ Editar Chatbot';
     document.getElementById('submitBtn').querySelector('.btn-text').textContent = '✓ Guardar Cambios';
     
     // Fill form
@@ -425,12 +425,12 @@ async function handleClientSubmit(e) {
         if (currentClientId) {
             // Update existing client
             result = await adminAPI.updateClient(currentClientId, formData);
-            adminUtils.showToast('Cliente actualizado exitosamente', 'success');
+            adminUtils.showToast('Chatbot actualizado exitosamente', 'success');
         } else {
             // Create new client
             result = await adminAPI.createClient(formData);
             console.log('Client created, result:', result);
-            adminUtils.showToast('Cliente creado exitosamente', 'success');
+            adminUtils.showToast('Chatbot creado exitosamente', 'success');
             
             // Show widget code immediately
             if (result.widgetCode) {
@@ -603,34 +603,33 @@ async function toggleClientStatus(clientId) {
     const newStatus = client.status === 'active' ? 'inactive' : 'active';
     const action = newStatus === 'active' ? 'activar' : 'pausar';
     
-    if (!adminUtils.confirmDialog(`¿Estás seguro de ${action} este cliente?`)) {
+    if (!adminUtils.confirmDialog(`¿Estás seguro de ${action} este chatbot?`)) {
         return;
     }
     
     try {
         await adminAPI.updateClient(clientId, { status: newStatus });
-        adminUtils.showToast(`Cliente ${newStatus === 'active' ? 'activado' : 'pausado'} exitosamente`, 'success');
+        adminUtils.showToast(`Chatbot ${newStatus === 'active' ? 'activado' : 'pausado'} exitosamente`, 'success');
         await loadClients();
     } catch (error) {
         console.error('Error updating client status:', error);
-        adminUtils.showToast('Error al actualizar estado del cliente', 'error');
+        adminUtils.showToast('Error al actualizar estado del chatbot', 'error');
     }
 }
 
 // Delete client
 async function deleteClient(clientId) {
-    if (!adminUtils.confirmDialog('¿Estás seguro de eliminar este cliente? Esta acción no se puede deshacer.')) {
+    if (!adminUtils.confirmDialog('¿Estás seguro de eliminar este chatbot? Esta acción no se puede deshacer.')) {
         return;
     }
     
     try {
-        // For now, just update status to deleted (when MongoDB is ready, we'll implement proper deletion)
-        await adminAPI.updateClient(clientId, { status: 'deleted' });
-        adminUtils.showToast('Cliente eliminado exitosamente', 'success');
+        await adminAPI.deleteClient(clientId);
+        adminUtils.showToast('Chatbot eliminado exitosamente', 'success');
         await loadClients();
     } catch (error) {
         console.error('Error deleting client:', error);
-        adminUtils.showToast('Error al eliminar cliente', 'error');
+        adminUtils.showToast('Error al eliminar chatbot', 'error');
     }
 }
 
