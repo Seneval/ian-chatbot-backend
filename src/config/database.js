@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 let isConnected = false;
+let connectionPromise = null;
 
 const connectDB = async () => {
   if (isConnected) {
@@ -8,14 +9,26 @@ const connectDB = async () => {
     return;
   }
   
+  // Return existing connection attempt if one is in progress
+  if (connectionPromise) {
+    return connectionPromise;
+  }
+  
   if (!process.env.MONGODB_URI) {
     throw new Error('MONGODB_URI is not defined in environment variables');
   }
   
+  connectionPromise = mongoose.connect(process.env.MONGODB_URI, {
+    serverSelectionTimeoutMS: 8000,  // Reduced from default to fit within Vercel timeout
+    socketTimeoutMS: 45000,
+    maxPoolSize: 10,
+    minPoolSize: 2,
+    retryWrites: true,
+    w: 'majority'
+  });
+  
   try {
-    await mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000,
-    });
+    await connectionPromise;
     
     isConnected = true;
     console.log('✅ MongoDB connected successfully');
@@ -45,7 +58,10 @@ const connectDB = async () => {
   } catch (error) {
     console.error('❌ MongoDB connection failed:', error);
     isConnected = false;
+    connectionPromise = null;  // Reset to allow retry
     throw error;
+  } finally {
+    connectionPromise = null;  // Clear promise after completion
   }
 };
 

@@ -29,8 +29,22 @@ const isMongoDBAvailable = () => {
   return Session && Message && Client && Tenant && process.env.MONGODB_URI;
 };
 
+// Handle preflight requests for CORS
+router.options('/*', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-client-token');
+  res.setHeader('Access-Control-Max-Age', '86400');
+  res.status(204).end();
+});
+
 // Create or get session
 router.post('/session', async (req, res) => {
+  // Set CORS headers explicitly for widget compatibility
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-client-token');
+  
   try {
     if (!openai) {
       return res.status(503).json({ 
@@ -49,24 +63,48 @@ router.post('/session', async (req, res) => {
     let savedSession;
     
     if (isMongoDBAvailable()) {
-      // Use MongoDB
-      const session = new Session({
-        sessionId,
-        clientId,
-        tenantId, // Critical: track session to tenant
-        threadId: thread.id,
-        metadata: {
-          userAgent: req.headers['user-agent'],
-          ipAddress: req.ip,
-          referrer: req.headers['referer']
-        }
-      });
-      savedSession = await session.save();
+      // Use MongoDB with timeout protection
+      const mongoTimeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('MongoDB operation timeout')), 8000)
+      );
       
-      // Update client statistics
-      const client = await Client.findOne({ clientId });
-      if (client) {
-        await client.incrementSessionCount();
+      const mongoOperation = async () => {
+        const session = new Session({
+          sessionId,
+          clientId,
+          tenantId, // Critical: track session to tenant
+          threadId: thread.id,
+          metadata: {
+            userAgent: req.headers['user-agent'],
+            ipAddress: req.ip,
+            referrer: req.headers['referer']
+          }
+        });
+        const saved = await session.save();
+        
+        // Update client statistics (non-blocking)
+        Client.findOne({ clientId }).then(client => {
+          if (client) client.incrementSessionCount().catch(console.error);
+        }).catch(console.error);
+        
+        return saved;
+      };
+      
+      try {
+        savedSession = await Promise.race([mongoOperation(), mongoTimeout]);
+      } catch (mongoError) {
+        console.error('MongoDB error, falling back to in-memory:', mongoError.message);
+        // Fall back to in-memory storage
+        savedSession = {
+          sessionId,
+          clientId,
+          tenantId,
+          threadId: thread.id,
+          createdAt: new Date(),
+          messageCount: 0,
+          isActive: true
+        };
+        inMemorySessions[sessionId] = savedSession;
       }
     } else {
       // Use in-memory storage
@@ -99,6 +137,11 @@ router.post('/session', async (req, res) => {
 
 // Send message to assistant
 router.post('/message', checkUsageLimit, async (req, res) => {
+  // Set CORS headers explicitly for widget compatibility
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-client-token');
+  
   try {
     if (!openai) {
       return res.status(503).json({ 
