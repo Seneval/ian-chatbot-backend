@@ -44,6 +44,15 @@ router.post('/admin/login', async (req, res) => {
       try {
         const user = await User.findByEmail(loginEmail);
         if (user && await user.comparePassword(password)) {
+          // Check if email is verified
+          if (!user.emailVerified) {
+            return res.status(403).json({
+              error: 'Por favor verifica tu email antes de iniciar sesión. Revisa tu bandeja de entrada.',
+              code: 'EMAIL_NOT_VERIFIED',
+              email: user.email
+            });
+          }
+          
           const tenant = await Tenant.findOne({ tenantId: user.tenantId });
           
           if (tenant) {
