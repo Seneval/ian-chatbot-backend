@@ -212,6 +212,15 @@ async function validateTenantLegacy(req, res, next) {
         code: 'TENANT_NOT_FOUND'
       });
     }
+    
+    // Enforce email verification
+    if (!user.emailVerified) {
+      return res.status(403).json({
+        error: 'Acceso denegado. Email no verificado.',
+        code: 'EMAIL_NOT_VERIFIED',
+        resendUrl: '/api/tenant/resend-verification'
+      });
+    }
 
     // Check if user belongs to the tenant
     if (user.tenantId !== tenant.tenantId) {

@@ -248,13 +248,53 @@
                     messageHTML += `Empresa: ${result.tenant.name}<br><br>`;
                     
                     if (needsVerification) {
-                        messageHTML += `
-                            <strong>⚠️ Verificación de Email Requerida</strong><br>
-                            <p style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 4px; color: #856404;">
-                                📧 Hemos enviado un email de verificación a <strong>${result.user.email}</strong><br>
-                                Por favor revisa tu bandeja de entrada y haz clic en el enlace de verificación.
-                            </p>
+                        // Hide the form completely
+                        form.style.display = 'none';
+                        
+                        // Show prominent verification required message
+                        message.className = 'message';
+                        message.style.display = 'block';
+                        message.style.background = '#ffeaa7';
+                        message.style.border = '2px solid #fdcb6e';
+                        message.style.color = '#856404';
+                        
+                        message.innerHTML = `
+                            <div style="text-align: center; padding: 20px;">
+                                <h2 style="color: #e17055; margin-bottom: 15px;">⚠️ VERIFICACIÓN OBLIGATORIA</h2>
+                                <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                                    <p style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">
+                                        NO PUEDES INICIAR SESIÓN hasta verificar tu email
+                                    </p>
+                                    <p style="font-size: 16px; margin-bottom: 15px;">
+                                        Hemos enviado un enlace de verificación a:<br>
+                                        <strong style="font-size: 18px; color: #2d3436;">${result.user.email}</strong>
+                                    </p>
+                                    <div style="background: #dfe6e9; padding: 15px; border-radius: 5px; text-align: left;">
+                                        <strong>Próximos pasos:</strong>
+                                        <ol style="margin: 10px 0 0 20px;">
+                                            <li>Abre tu email</li>
+                                            <li>Busca el mensaje de "iAN Chatbot"</li>
+                                            <li>Haz clic en el enlace de verificación</li>
+                                            <li>Después podrás iniciar sesión</li>
+                                        </ol>
+                                    </div>
+                                </div>
+                                <div style="background: #fab1a0; padding: 15px; border-radius: 5px; margin-bottom: 15px;">
+                                    <strong>¿No recibiste el email?</strong>
+                                    <ul style="margin: 10px 0 0 20px; text-align: left;">
+                                        <li>Revisa tu carpeta de SPAM</li>
+                                        <li>Espera hasta 5 minutos</li>
+                                        <li>Verifica que el email sea correcto</li>
+                                    </ul>
+                                </div>
+                                <a href="/admin/login.html" style="display: inline-block; padding: 12px 30px; background: #74b9ff; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                                    Ir al Login (después de verificar)
+                                </a>
+                            </div>
                         `;
+                        
+                        // Stop here - don't show the regular success message
+                        return;
                     }
                     
                     if (nextSteps.length > 0) {

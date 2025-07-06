@@ -39,10 +39,22 @@ class EmailService {
       // Verify connection
       this.transporter.verify((error, success) => {
         if (error) {
-          console.error('❌ Email service connection failed:', error.message);
+          console.error('❌ Email service connection failed:', error);
+          console.error('SMTP Details:', {
+            host: process.env.SMTP_HOST,
+            port: process.env.SMTP_PORT,
+            user: process.env.SMTP_USER,
+            from: this.fromEmail
+          });
           this.isConfigured = false;
         } else {
           console.log('✅ Email service ready to send emails');
+          console.log('SMTP Configuration:', {
+            host: process.env.SMTP_HOST,
+            port: process.env.SMTP_PORT,
+            from: this.fromEmail,
+            secure: process.env.SMTP_PORT === '465'
+          });
           this.isConfigured = true;
         }
       });
@@ -119,12 +131,25 @@ class EmailService {
     };
 
     try {
+      console.log('📧 Attempting to send verification email to:', email);
+      console.log('📧 Using FROM address:', this.fromEmail);
+      
       const info = await this.transporter.sendMail(mailOptions);
-      console.log('✅ Verification email sent:', info.messageId);
+      console.log('✅ Verification email sent successfully');
+      console.log('Message ID:', info.messageId);
+      console.log('Response:', info.response);
       return { success: true, messageId: info.messageId };
     } catch (error) {
-      console.error('❌ Failed to send verification email:', error);
-      return { success: false, error: error.message };
+      console.error('❌ Failed to send verification email');
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        command: error.command,
+        response: error.response,
+        responseCode: error.responseCode
+      });
+      console.error('Full error:', error);
+      return { success: false, error: error.message, details: error };
     }
   }
 

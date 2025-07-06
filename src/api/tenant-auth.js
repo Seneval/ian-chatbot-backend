@@ -205,6 +205,16 @@ router.post('/login', authLimiter, async (req, res) => {
         code: 'INVALID_CREDENTIALS'
       });
     }
+    
+    // Block unverified emails
+    if (!user.emailVerified) {
+      return res.status(403).json({
+        error: 'Por favor verifica tu email antes de iniciar sesión. Revisa tu bandeja de entrada.',
+        code: 'EMAIL_NOT_VERIFIED',
+        email: user.email,
+        resendUrl: '/api/tenant/resend-verification'
+      });
+    }
 
     // Find tenant
     const tenant = await Tenant.findOne({ tenantId: user.tenantId, isActive: true });
