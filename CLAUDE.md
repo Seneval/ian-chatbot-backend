@@ -301,6 +301,23 @@ In production, test endpoints return 404 unless:
 - `ENABLE_TEST_ENDPOINTS=true` OR
 - Request includes header `x-test-api-key` matching `TEST_API_KEY` env var
 
+### Widget CORS Errors (Jan 2025)
+**Problem**: Widget showed CORS errors instead of actual error messages (e.g., "Token inválido")
+
+**Root Cause**: 
+- Middleware (`validateClient`, `checkUsageLimit`) runs BEFORE route handlers
+- When middleware returns errors (401, 429), no CORS headers were included
+- Browser interprets missing CORS headers as CORS error, hiding real error message
+
+**Solution**: Added CORS headers to all middleware error responses in `src/middleware/auth.js`:
+```javascript
+res.setHeader('Access-Control-Allow-Origin', '*');
+res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-client-token');
+```
+
+This ensures browsers can read actual error messages like "Token inválido" or "Límite diario excedido" instead of showing generic CORS errors.
+
 ## Version Control & Recovery
 
 **Current Version**: Latest updates include security hardening and admin management

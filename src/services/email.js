@@ -14,6 +14,13 @@ class EmailService {
     // Check if email configuration exists
     if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
       console.log('📧 Email service not configured. Email verification will be disabled.');
+      console.log('Missing env vars:', {
+        SMTP_HOST: !!process.env.SMTP_HOST,
+        SMTP_USER: !!process.env.SMTP_USER,
+        SMTP_PASS: !!process.env.SMTP_PASS,
+        EMAIL_FROM: process.env.EMAIL_FROM || 'not set',
+        FRONTEND_URL: process.env.FRONTEND_URL || 'not set'
+      });
       return;
     }
 

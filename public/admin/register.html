@@ -239,9 +239,34 @@
                 
                 if (response.ok && result.success) {
                     message.className = 'message success';
-                    message.innerHTML = `
-                        <strong>¡Cuenta creada exitosamente!</strong><br>
-                        Empresa: ${result.tenant.name}<br>
+                    
+                    // Check if email verification is needed
+                    const needsVerification = result.user && result.user.emailVerified === false;
+                    const nextSteps = result.nextSteps || [];
+                    
+                    let messageHTML = `<strong>¡Cuenta creada exitosamente!</strong><br>`;
+                    messageHTML += `Empresa: ${result.tenant.name}<br><br>`;
+                    
+                    if (needsVerification) {
+                        messageHTML += `
+                            <strong>⚠️ Verificación de Email Requerida</strong><br>
+                            <p style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 4px; color: #856404;">
+                                📧 Hemos enviado un email de verificación a <strong>${result.user.email}</strong><br>
+                                Por favor revisa tu bandeja de entrada y haz clic en el enlace de verificación.
+                            </p>
+                        `;
+                    }
+                    
+                    if (nextSteps.length > 0) {
+                        messageHTML += `<strong>Próximos pasos:</strong><br>`;
+                        messageHTML += '<ul style="text-align: left;">';
+                        nextSteps.forEach(step => {
+                            messageHTML += `<li>${step}</li>`;
+                        });
+                        messageHTML += '</ul>';
+                    }
+                    
+                    messageHTML += `
                         <br>
                         <strong>Para acceder al dashboard:</strong><br>
                         📧 Email: ${result.user.email}<br>
@@ -251,6 +276,8 @@
                             Ir al Dashboard →
                         </a>
                     `;
+                    
+                    message.innerHTML = messageHTML;
                     message.style.display = 'block';
                     form.reset();
                     availability.textContent = '';
