@@ -227,7 +227,7 @@
             const data = Object.fromEntries(formData);
             
             try {
-                const response = await fetch('/api/register/register', {
+                const response = await fetch('/api/register/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
