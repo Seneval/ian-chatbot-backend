@@ -237,7 +237,7 @@
                 
                 const result = await response.json();
                 
-                if (result.success) {
+                if (response.ok && result.success) {
                     message.className = 'message success';
                     message.innerHTML = `
                         <strong>¡Cuenta creada exitosamente!</strong><br>
@@ -259,9 +259,20 @@
                 }
             } catch (error) {
                 message.className = 'message error';
+                let errorMessage = error.message;
+                
+                // Translate common error messages to Spanish
+                if (errorMessage.includes('email already exists') || errorMessage.includes('duplicate key error') || errorMessage.includes('email_1 dup key')) {
+                    errorMessage = 'Este email ya está registrado. Por favor usa otro email o inicia sesión.';
+                } else if (errorMessage.includes('Company name already taken')) {
+                    errorMessage = 'Este nombre de empresa ya está en uso. Por favor elige otro.';
+                } else if (errorMessage.includes('Failed to fetch')) {
+                    errorMessage = 'Error de conexión. Por favor verifica tu conexión a internet.';
+                }
+                
                 message.innerHTML = `
                     <strong>Error al crear la cuenta:</strong><br>
-                    ${error.message}
+                    ${errorMessage}
                 `;
                 message.style.display = 'block';
             } finally {
