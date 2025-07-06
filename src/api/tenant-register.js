@@ -102,8 +102,17 @@ router.post('/', async (req, res) => {
     
     // Send verification email
     try {
-      await emailService.sendVerificationEmail(email, contactName, verificationToken);
-      console.log('📧 Verification email sent to:', email);
+      const emailResult = await emailService.sendVerificationEmail(email, contactName, verificationToken);
+      if (emailResult.success) {
+        console.log('📧 Verification email sent to:', email);
+      } else {
+        console.error('❌ Failed to send verification email:', emailResult.error);
+        // Check if it's a test mode restriction
+        if (emailResult.error && emailResult.error.includes('testing emails')) {
+          console.log('📧 Test mode restriction: In production, email would be sent to:', email);
+          console.log('   For testing, use: patriciohml@gmail.com or delivered@resend.dev');
+        }
+      }
     } catch (emailError) {
       console.error('❌ Failed to send verification email:', emailError);
       // Continue registration even if email fails
