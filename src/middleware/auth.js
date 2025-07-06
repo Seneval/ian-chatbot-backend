@@ -15,6 +15,9 @@ const validateClient = async (req, res, next) => {
     const token = req.headers['x-client-token'] || req.query.token;
     
     if (!token) {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-client-token');
       return res.status(401).json({ 
         error: 'Token de cliente requerido' 
       });
@@ -33,12 +36,18 @@ const validateClient = async (req, res, next) => {
       
       next();
     } catch (error) {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-client-token');
       return res.status(401).json({ 
         error: 'Token inválido o expirado' 
       });
     }
   } catch (error) {
     console.error('Error en validación de cliente:', error);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-client-token');
     res.status(500).json({ 
       error: 'Error en autenticación' 
     });
@@ -111,6 +120,9 @@ const checkUsageLimit = async (req, res, next) => {
         const remainingHours = Math.ceil(remainingMs / (1000 * 60 * 60));
         const isPaid = client.plan === 'paid';
         
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-client-token');
         return res.status(429).json({ 
           error: isPaid 
             ? `Has alcanzado el límite de ${client.limits.messagesPerDay} mensajes por día.`
