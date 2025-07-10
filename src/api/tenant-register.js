@@ -100,9 +100,16 @@ router.post('/', async (req, res) => {
     await ownerUser.save();
     console.log(`✅ Owner user created: ${ownerUser.userId}`);
     
-    // Send verification email
+    // Send verification email with timeout protection
     try {
-      const emailResult = await emailService.sendVerificationEmail(email, contactName, verificationToken);
+      const emailTimeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Email sending timeout')), 5000) // 5 second timeout
+      );
+      
+      const emailPromise = emailService.sendVerificationEmail(email, contactName, verificationToken);
+      
+      const emailResult = await Promise.race([emailPromise, emailTimeout]);
+      
       if (emailResult.success) {
         console.log('📧 Verification email sent to:', email);
       } else {
@@ -114,7 +121,8 @@ router.post('/', async (req, res) => {
         }
       }
     } catch (emailError) {
-      console.error('❌ Failed to send verification email:', emailError);
+      console.error('❌ Failed to send verification email:', emailError.message || emailError);
+      console.log('⚠️ Registration will continue without email verification');
       // Continue registration even if email fails
     }
 
