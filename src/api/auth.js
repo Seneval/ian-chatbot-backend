@@ -52,7 +52,8 @@ router.post('/admin/login', async (req, res) => {
   }
   try {
     const { username, password, email } = req.body;
-    console.log('🔐 Login attempt:', { username, email, hasPassword: !!password });
+    console.log('🔐 Login attempt:', { username, email, hasPassword: !!password, origin });
+    console.log('🔐 Full request body received:', req.body);
     
     // Try tenant user login first (email-based)
     if (User && Tenant && (email || username.includes('@'))) {

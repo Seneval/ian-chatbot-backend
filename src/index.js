@@ -145,11 +145,15 @@ app.use((err, req, res, next) => {
       }
     });
     
+    // Set CORS headers for error responses
+    setCORSHeaders(req, res);
+    
     return res.status(400).json({
       success: false,
       error: 'Invalid JSON format in request body',
       details: 'Please check for special characters that need escaping',
-      position: err.message.match(/position (\d+)/)?.[1] || 'unknown'
+      position: err.message.match(/position (\d+)/)?.[1] || 'unknown',
+      rawBodyPreview: req.rawBody?.toString()?.substring(0, 200) || 'No raw body'
     });
   }
   next(err);
