@@ -862,6 +862,71 @@ router.post('/admin/change-password', validateAdmin, async (req, res) => {
   }
 });
 
+// Bulk cleanup - delete all tenant users and tenants, keep only superadmin
+router.delete('/admin/cleanup-all', async (req, res) => {
+  try {
+    const { emergencyKey, confirmDelete } = req.body;
+    
+    // Require emergency key for security
+    if (!emergencyKey || emergencyKey !== process.env.ADMIN_SETUP_KEY) {
+      return res.status(403).json({ 
+        error: 'Clave de emergencia requerida' 
+      });
+    }
+    
+    // Require explicit confirmation
+    if (confirmDelete !== 'DELETE_ALL_TENANT_DATA') {
+      return res.status(400).json({ 
+        error: 'Confirmación requerida: confirmDelete debe ser "DELETE_ALL_TENANT_DATA"' 
+      });
+    }
+    
+    let results = {
+      deletedTenantUsers: 0,
+      deletedTenants: 0,
+      deletedClients: 0,
+      preservedAdminUsers: 0
+    };
+    
+    // Delete all tenant Users (preserve AdminUsers)
+    if (User) {
+      const deleteResult = await User.deleteMany({});
+      results.deletedTenantUsers = deleteResult.deletedCount;
+    }
+    
+    // Delete all Tenants
+    if (Tenant) {
+      const deleteResult = await Tenant.deleteMany({});
+      results.deletedTenants = deleteResult.deletedCount;
+    }
+    
+    // Delete all Clients
+    if (Client) {
+      const deleteResult = await Client.deleteMany({});
+      results.deletedClients = deleteResult.deletedCount;
+    }
+    
+    // Count preserved admin users
+    if (AdminUser) {
+      const adminCount = await AdminUser.countDocuments({});
+      results.preservedAdminUsers = adminCount;
+    }
+    
+    console.log('🧹 BULK CLEANUP COMPLETED:', results);
+    
+    res.json({
+      success: true,
+      message: 'Limpieza masiva completada exitosamente',
+      results
+    });
+  } catch (error) {
+    console.error('Error in bulk cleanup:', error);
+    res.status(500).json({ 
+      error: 'Error en limpieza masiva' 
+    });
+  }
+});
+
 // List all users and tenants (admin only)
 router.get('/admin/list-all-users', async (req, res) => {
   try {
