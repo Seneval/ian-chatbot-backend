@@ -92,6 +92,7 @@ const corsOptions = {
       'https://inteligenciaartificialparanegocios.com',
       'https://www.inteligenciaartificialparanegocios.com',
       'https://admin.inteligenciaartificialparanegocios.com',  // Admin subdomain
+      'https://app.inteligenciaartificialparanegocios.com',    // App subdomain
       /^https:\/\/.*\.vercel\.app$/  // Allow all Vercel preview deployments
     ];
     
@@ -380,6 +381,7 @@ const setCORSHeaders = (req, res) => {
     'https://inteligenciaartificialparanegocios.com',
     'https://www.inteligenciaartificialparanegocios.com',
     'https://admin.inteligenciaartificialparanegocios.com',
+    'https://app.inteligenciaartificialparanegocios.com',
   ];
   
   const envOrigins = process.env.ALLOWED_ORIGINS 

@@ -100,31 +100,40 @@ router.post('/', async (req, res) => {
     await ownerUser.save();
     console.log(`✅ Owner user created: ${ownerUser.userId}`);
     
-    // Send verification email with timeout protection
-    try {
-      const emailTimeout = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Email sending timeout')), 5000) // 5 second timeout
-      );
-      
-      const emailPromise = emailService.sendVerificationEmail(email, contactName, verificationToken);
-      
-      const emailResult = await Promise.race([emailPromise, emailTimeout]);
-      
-      if (emailResult.success) {
-        console.log('📧 Verification email sent to:', email);
-      } else {
-        console.error('❌ Failed to send verification email:', emailResult.error);
-        // Check if it's a test mode restriction
-        if (emailResult.error && emailResult.error.includes('testing emails')) {
-          console.log('📧 Test mode restriction: In production, email would be sent to:', email);
-          console.log('   For testing, use: patriciohml@gmail.com or delivered@resend.dev');
+    // Send verification email asynchronously (non-blocking)
+    // Don't wait for email completion to avoid registration timeouts
+    const sendVerificationEmail = async () => {
+      try {
+        const emailTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Email sending timeout')), 8000) // 8 second timeout
+        );
+        
+        const emailPromise = emailService.sendVerificationEmail(email, contactName, verificationToken);
+        
+        const emailResult = await Promise.race([emailPromise, emailTimeout]);
+        
+        if (emailResult.success) {
+          console.log('📧 Verification email sent to:', email);
+        } else {
+          console.error('❌ Failed to send verification email:', emailResult.error);
+          // Log error to Sentry but don't block registration
+          Sentry.captureException(new Error(`Email sending failed: ${emailResult.error}`), {
+            extra: { email, registrationId: tenant.tenantId }
+          });
         }
+      } catch (emailError) {
+        console.error('❌ Failed to send verification email:', emailError.message || emailError);
+        // Log error to Sentry but don't block registration
+        Sentry.captureException(emailError, {
+          extra: { email, registrationId: tenant.tenantId }
+        });
       }
-    } catch (emailError) {
-      console.error('❌ Failed to send verification email:', emailError.message || emailError);
-      console.log('⚠️ Registration will continue without email verification');
-      // Continue registration even if email fails
-    }
+    };
+    
+    // Start email sending in background (don't await)
+    sendVerificationEmail().catch(err => {
+      console.error('Background email sending failed:', err.message);
+    });
 
     // Generate legacy JWT token for immediate access
     const legacyToken = jwt.sign(
@@ -220,9 +229,24 @@ router.post('/', async (req, res) => {
       }
     }
 
+    // Provide more specific error messages for common issues
+    let errorMessage = 'Registration failed. Please try again.';
+    
+    if (error.message.includes('duplicate key error') || error.message.includes('E11000')) {
+      errorMessage = 'Este email ya está registrado. Por favor usa otro email.';
+    } else if (error.message.includes('MongoServerSelectionError') || error.message.includes('MongoTimeoutError')) {
+      errorMessage = 'Error de conexión con la base de datos. Por favor intenta de nuevo.';
+    } else if (error.message.includes('timeout') || error.message.includes('ETIMEDOUT')) {
+      errorMessage = 'La operación tardó demasiado. Por favor intenta de nuevo.';
+    } else if (error.message.includes('ValidationError')) {
+      errorMessage = 'Datos inválidos. Por favor verifica la información ingresada.';
+    } else if (error.message.includes('network') || error.message.includes('ENOTFOUND')) {
+      errorMessage = 'Error de conexión. Por favor verifica tu conexión a internet.';
+    }
+
     res.status(500).json({
       success: false,
-      error: 'Registration failed. Please try again.',
+      error: errorMessage,
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
