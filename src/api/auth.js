@@ -862,6 +862,68 @@ router.post('/admin/change-password', validateAdmin, async (req, res) => {
   }
 });
 
+// List all users and tenants (admin only)
+router.get('/admin/list-all-users', async (req, res) => {
+  try {
+    const { emergencyKey } = req.query;
+    
+    // Require emergency key for security
+    if (!emergencyKey || emergencyKey !== process.env.ADMIN_SETUP_KEY) {
+      return res.status(403).json({ 
+        error: 'Clave de emergencia requerida' 
+      });
+    }
+    
+    let result = {
+      adminUsers: [],
+      tenantUsers: [],
+      tenants: []
+    };
+    
+    // Get all AdminUsers
+    if (AdminUser) {
+      const adminUsers = await AdminUser.find({}, { password: 0 });
+      result.adminUsers = adminUsers.map(u => ({
+        email: u.email,
+        username: u.username,
+        role: u.role,
+        isActive: u.isActive,
+        lastLogin: u.lastLogin
+      }));
+    }
+    
+    // Get all tenant Users
+    if (User) {
+      const users = await User.find({}, { password: 0 });
+      result.tenantUsers = users.map(u => ({
+        email: u.email,
+        tenantId: u.tenantId,
+        role: u.role,
+        emailVerified: u.emailVerified,
+        name: u.name
+      }));
+    }
+    
+    // Get all Tenants
+    if (Tenant) {
+      const tenants = await Tenant.find({});
+      result.tenants = tenants.map(t => ({
+        tenantId: t.tenantId,
+        name: t.name,
+        slug: t.slug,
+        email: t.email
+      }));
+    }
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error listing users:', error);
+    res.status(500).json({ 
+      error: 'Error al listar usuarios' 
+    });
+  }
+});
+
 // Delete user by email (admin only)
 router.delete('/admin/delete-user', async (req, res) => {
   try {
