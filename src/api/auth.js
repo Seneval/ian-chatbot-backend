@@ -5,6 +5,22 @@ const { v4: uuidv4 } = require('uuid');
 const { validateAdmin } = require('../middleware/auth');
 const router = express.Router();
 
+// Handle preflight requests for CORS
+router.options('/*', (req, res) => {
+  const origin = req.headers.origin;
+  
+  // Allow origins that include our domains or localhost
+  if (origin && (origin.includes('inteligenciaartificialparanegocios.com') || origin.includes('localhost') || origin.includes('vercel.app'))) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-client-token, x-admin-setup-key, x-test-api-key');
+    res.header('Access-Control-Max-Age', '86400'); // 24 hours
+  }
+  
+  res.status(204).end();
+});
+
 // Import MongoDB models
 let Client, User, Tenant, AdminUser;
 try {
@@ -26,11 +42,13 @@ const isMongoDBAvailable = () => {
 
 // Admin login (supports both legacy admin and tenant users)
 router.post('/admin/login', async (req, res) => {
-  // Ensure CORS headers are set
+  // Set CORS headers for all requests to this endpoint
   const origin = req.headers.origin;
-  if (origin && (origin.includes('inteligenciaartificialparanegocios.com') || origin.includes('localhost'))) {
+  if (origin && (origin.includes('inteligenciaartificialparanegocios.com') || origin.includes('localhost') || origin.includes('vercel.app'))) {
     res.header('Access-Control-Allow-Origin', origin);
     res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
   }
   try {
     const { username, password, email } = req.body;
