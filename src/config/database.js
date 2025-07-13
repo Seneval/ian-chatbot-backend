@@ -19,7 +19,7 @@ const connectDB = async () => {
   }
   
   connectionPromise = mongoose.connect(process.env.MONGODB_URI, {
-    serverSelectionTimeoutMS: 8000,  // Reduced from default to fit within Vercel timeout
+    serverSelectionTimeoutMS: 30000,  // 30 seconds for Vercel Pro
     socketTimeoutMS: 45000,
     maxPoolSize: 10,
     minPoolSize: 2,

@@ -63,9 +63,9 @@ router.post('/session', async (req, res) => {
     let savedSession;
     
     if (isMongoDBAvailable()) {
-      // Use MongoDB with timeout protection
+      // Use MongoDB with timeout protection (50 seconds for Vercel Pro)
       const mongoTimeout = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('MongoDB operation timeout')), 8000)
+        setTimeout(() => reject(new Error('MongoDB operation timeout')), 50000)
       );
       
       const mongoOperation = async () => {
@@ -93,18 +93,9 @@ router.post('/session', async (req, res) => {
       try {
         savedSession = await Promise.race([mongoOperation(), mongoTimeout]);
       } catch (mongoError) {
-        console.error('MongoDB error, falling back to in-memory:', mongoError.message);
-        // Fall back to in-memory storage
-        savedSession = {
-          sessionId,
-          clientId,
-          tenantId,
-          threadId: thread.id,
-          createdAt: new Date(),
-          messageCount: 0,
-          isActive: true
-        };
-        inMemorySessions[sessionId] = savedSession;
+        console.error('MongoDB error:', mongoError.message);
+        // Don't fall back to in-memory - throw the error instead
+        throw new Error(`Database error: ${mongoError.message}`);
       }
     } else {
       // Use in-memory storage
