@@ -862,6 +862,73 @@ router.post('/admin/change-password', validateAdmin, async (req, res) => {
   }
 });
 
+// Delete user by email (admin only)
+router.delete('/admin/delete-user', async (req, res) => {
+  try {
+    const { email, emergencyKey } = req.body;
+    
+    // Require emergency key for security
+    if (!emergencyKey || emergencyKey !== process.env.ADMIN_SETUP_KEY) {
+      return res.status(403).json({ 
+        error: 'Clave de emergencia requerida' 
+      });
+    }
+    
+    if (!email) {
+      return res.status(400).json({ 
+        error: 'Email es requerido' 
+      });
+    }
+    
+    let deletedUser = null;
+    let userType = null;
+    
+    // Try to delete from User (tenant users) first
+    if (User) {
+      const user = await User.findOneAndDelete({ 
+        email: email.toLowerCase() 
+      });
+      if (user) {
+        deletedUser = user;
+        userType = 'tenant';
+      }
+    }
+    
+    // If not found in User, try AdminUser
+    if (!deletedUser && AdminUser) {
+      const adminUser = await AdminUser.findOneAndDelete({ 
+        email: email.toLowerCase() 
+      });
+      if (adminUser) {
+        deletedUser = adminUser;
+        userType = 'admin';
+      }
+    }
+    
+    if (!deletedUser) {
+      return res.status(404).json({ 
+        error: 'Usuario no encontrado' 
+      });
+    }
+    
+    console.log(`🗑️ Deleted ${userType} user: ${email}`);
+    
+    res.json({
+      success: true,
+      message: `Usuario ${userType} eliminado exitosamente`,
+      deletedUser: {
+        email: deletedUser.email,
+        type: userType
+      }
+    });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ 
+      error: 'Error al eliminar usuario' 
+    });
+  }
+});
+
 // Emergency password reset for superadmin (temporary)
 router.post('/admin/emergency-reset', async (req, res) => {
   try {
