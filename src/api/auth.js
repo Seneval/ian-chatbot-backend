@@ -862,6 +862,80 @@ router.post('/admin/change-password', validateAdmin, async (req, res) => {
   }
 });
 
+// Emergency password reset for superadmin (temporary)
+router.post('/admin/emergency-reset', async (req, res) => {
+  try {
+    const { email, newPassword, emergencyKey } = req.body;
+    
+    // Require emergency key for security
+    if (!emergencyKey || emergencyKey !== process.env.ADMIN_SETUP_KEY) {
+      return res.status(403).json({ 
+        error: 'Clave de emergencia requerida' 
+      });
+    }
+    
+    if (!email || !newPassword) {
+      return res.status(400).json({ 
+        error: 'Email y nueva contraseña son requeridos' 
+      });
+    }
+    
+    if (newPassword.length < 8) {
+      return res.status(400).json({ 
+        error: 'La contraseña debe tener al menos 8 caracteres' 
+      });
+    }
+    
+    let user = null;
+    let userType = null;
+    
+    // Try to find in AdminUser first
+    if (AdminUser) {
+      user = await AdminUser.findOne({ 
+        email: email.toLowerCase() 
+      });
+      if (user) {
+        userType = 'admin';
+      }
+    }
+    
+    // If not found in AdminUser, try User (tenant users)
+    if (!user && User) {
+      user = await User.findByEmail(email.toLowerCase());
+      if (user) {
+        userType = 'tenant';
+      }
+    }
+    
+    if (!user) {
+      return res.status(404).json({ 
+        error: 'Usuario no encontrado en el sistema' 
+      });
+    }
+    
+    console.log(`🔍 Found user: ${user.email}, type: ${userType}, role: ${user.role}`);
+    
+    // Update password
+    user.password = newPassword; // Will be hashed by pre-save hook
+    if (userType === 'admin') {
+      user.passwordChangedAt = new Date();
+    }
+    await user.save();
+    
+    console.log(`🔒 Emergency password reset for ${userType} user: ${email}`);
+    
+    res.json({
+      success: true,
+      message: 'Contraseña de emergencia actualizada exitosamente'
+    });
+  } catch (error) {
+    console.error('Error in emergency password reset:', error);
+    res.status(500).json({ 
+      error: 'Error al resetear contraseña' 
+    });
+  }
+});
+
 // List all admin users (super_admin only)
 router.get('/admin/users', validateAdmin, async (req, res) => {
   try {
