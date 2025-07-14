@@ -28,11 +28,17 @@ document.addEventListener('DOMContentLoaded', () => {
 // Verify token is still valid
 async function verifyTokenAndRedirect(token) {
     try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+        
         const response = await fetch(`${API_BASE_URL}/auth/clients`, {
             headers: {
                 'Authorization': `Bearer ${token}`
-            }
+            },
+            signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         
         if (response.ok) {
             window.location.href = '/admin/dashboard.html';
@@ -42,6 +48,7 @@ async function verifyTokenAndRedirect(token) {
     } catch (error) {
         console.error('Token verification failed:', error);
         localStorage.removeItem(AUTH_TOKEN_KEY);
+        sessionStorage.removeItem(AUTH_TOKEN_KEY);
     }
 }
 
@@ -73,14 +80,20 @@ async function handleLogin(e) {
     errorMessage.style.display = 'none';
     
     try {
+        // Add timeout to prevent infinite loading
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+        
         const response = await fetch(`${API_BASE_URL}/auth/admin/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify({ username, password }),
+            signal: controller.signal
         });
         
+        clearTimeout(timeoutId);
         const data = await response.json();
         
         if (response.ok) {
@@ -128,17 +141,22 @@ async function handleLogin(e) {
     } catch (error) {
         // Handle network errors and other exceptions
         let errorMsg = error.message;
-        if (error.message.includes('Failed to fetch')) {
+        
+        if (error.name === 'AbortError') {
+            errorMsg = 'Tiempo de espera agotado. El servidor no respondió en 5 segundos.';
+        } else if (error.message.includes('Failed to fetch')) {
             errorMsg = 'Error de conexión. Verifique su conexión a internet.';
         } else if (error.name === 'SyntaxError' && error.message.includes('JSON')) {
             errorMsg = 'Error de formato. Verifique que su contraseña no contenga caracteres especiales problemáticos.';
         }
         
+        console.error('Login error:', error);
+        
         errorMessage.textContent = errorMsg;
         errorMessage.className = 'error-message';
         errorMessage.style.display = 'block';
-        
-        // Reset button state
+    } finally {
+        // Always reset button state in finally block to ensure it gets reset
         loginBtn.disabled = false;
         loginBtn.querySelector('.btn-text').style.display = 'inline';
         loginBtn.querySelector('.btn-loader').style.display = 'none';
