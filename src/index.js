@@ -142,13 +142,9 @@ app.use((err, req, res, next) => {
     const contextEnd = Math.min(rawBody.length, position + 10);
     const context = rawBody.substring(contextStart, contextEnd);
     
-    console.error('🚨 JSON Parse Error Details:');
-    console.error('  Error:', err.message);
-    console.error('  Position:', position);
-    console.error('  Problematic character:', problemChar, `(ASCII: ${problemChar.charCodeAt(0) || 'N/A'})`);
+    console.error('🚨 JSON Parse Error:', err.message);
+    console.error('  Position:', position, 'Character:', problemChar, `(ASCII: ${problemChar.charCodeAt(0) || 'N/A'})`);
     console.error('  Context:', context);
-    console.error('  Full raw body:', rawBody);
-    console.error('  Content-Type:', req.headers['content-type']);
     console.error('  Endpoint:', req.path);
     
     Sentry.captureException(err, {
