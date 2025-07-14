@@ -19,12 +19,15 @@ const connectDB = async () => {
   }
   
   connectionPromise = mongoose.connect(process.env.MONGODB_URI, {
-    serverSelectionTimeoutMS: 30000,  // 30 seconds for Vercel Pro
-    socketTimeoutMS: 45000,
+    serverSelectionTimeoutMS: 5000,  // 5 seconds - fail fast if MongoDB is down
+    socketTimeoutMS: 10000,  // 10 seconds max for operations
+    connectTimeoutMS: 10000,  // 10 seconds to establish connection
     maxPoolSize: 10,
     minPoolSize: 2,
     retryWrites: true,
-    w: 'majority'
+    w: 'majority',
+    heartbeatFrequencyMS: 2000,  // Check connection health every 2 seconds
+    retryReads: true  // Retry failed reads automatically
   });
   
   try {

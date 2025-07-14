@@ -82,7 +82,7 @@ async function handleLogin(e) {
     try {
         // Add timeout to prevent infinite loading
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
         
         const response = await fetch(`${API_BASE_URL}/auth/admin/login`, {
             method: 'POST',
@@ -143,7 +143,7 @@ async function handleLogin(e) {
         let errorMsg = error.message;
         
         if (error.name === 'AbortError') {
-            errorMsg = 'Tiempo de espera agotado. El servidor no respondió en 5 segundos.';
+            errorMsg = 'Tiempo de espera agotado. El servidor está tardando más de lo esperado. Por favor intente nuevamente.';
         } else if (error.message.includes('Failed to fetch')) {
             errorMsg = 'Error de conexión. Verifique su conexión a internet.';
         } else if (error.name === 'SyntaxError' && error.message.includes('JSON')) {
