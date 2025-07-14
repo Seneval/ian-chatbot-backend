@@ -419,13 +419,35 @@ router.get('/verify-email/:token', async (req, res) => {
   try {
     const { token } = req.params;
     
+    console.log('🔍 Email verification attempt:', {
+      token: token?.substring(0, 10) + '...',
+      timestamp: new Date().toISOString()
+    });
+    
     // Find user with this verification token
     const user = await User.findOne({
       emailVerificationToken: token,
       emailVerificationExpires: { $gt: Date.now() }
     });
     
+    console.log('👤 User lookup result:', {
+      found: !!user,
+      email: user?.email,
+      tokenExpires: user?.emailVerificationExpires,
+      alreadyVerified: user?.emailVerified,
+      currentTime: new Date().toISOString()
+    });
+    
     if (!user) {
+      // Also check if user exists but token is expired or already verified
+      const expiredUser = await User.findOne({ emailVerificationToken: token });
+      console.log('🕒 Expired/used token check:', {
+        foundExpiredUser: !!expiredUser,
+        email: expiredUser?.email,
+        expired: expiredUser?.emailVerificationExpires < Date.now(),
+        alreadyVerified: expiredUser?.emailVerified
+      });
+      
       return res.status(400).send(`
         <!DOCTYPE html>
         <html>
@@ -449,20 +471,26 @@ router.get('/verify-email/:token', async (req, res) => {
       `);
     }
     
+    console.log('✅ Verifying user email:', user.email);
+    
     // Mark email as verified
     user.emailVerified = true;
     user.emailVerificationToken = undefined;
     user.emailVerificationExpires = undefined;
     await user.save();
     
+    console.log('💾 User saved successfully, email verified:', user.email);
+    
     // Send welcome email
     try {
       await emailService.sendWelcomeEmail(user.email, user.name);
+      console.log('📧 Welcome email sent to:', user.email);
     } catch (emailError) {
       console.error('Failed to send welcome email:', emailError);
     }
     
     // Redirect to login with success message
+    console.log('🎉 Showing success page for:', user.email);
     res.send(`
       <!DOCTYPE html>
       <html>
