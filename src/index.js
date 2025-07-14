@@ -133,12 +133,31 @@ app.use(express.json({
 // Body parser error handling middleware
 app.use((err, req, res, next) => {
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
-    console.error('Body parser error:', err.message);
-    console.error('Raw body:', req.rawBody?.toString());
+    const rawBody = req.rawBody?.toString() || '';
+    const position = parseInt(err.message.match(/position (\d+)/)?.[1]) || 0;
+    
+    // Extract problematic character and surrounding context
+    const problemChar = rawBody[position] || '';
+    const contextStart = Math.max(0, position - 10);
+    const contextEnd = Math.min(rawBody.length, position + 10);
+    const context = rawBody.substring(contextStart, contextEnd);
+    
+    console.error('🚨 JSON Parse Error Details:');
+    console.error('  Error:', err.message);
+    console.error('  Position:', position);
+    console.error('  Problematic character:', problemChar, `(ASCII: ${problemChar.charCodeAt(0) || 'N/A'})`);
+    console.error('  Context:', context);
+    console.error('  Full raw body:', rawBody);
+    console.error('  Content-Type:', req.headers['content-type']);
+    console.error('  Endpoint:', req.path);
     
     Sentry.captureException(err, {
       extra: {
-        rawBody: req.rawBody?.toString(),
+        rawBody,
+        problemCharacter: problemChar,
+        problemCharCode: problemChar.charCodeAt(0) || null,
+        position,
+        context,
         contentType: req.headers['content-type'],
         endpoint: req.path,
         method: req.method
@@ -150,10 +169,12 @@ app.use((err, req, res, next) => {
     
     return res.status(400).json({
       success: false,
-      error: 'Invalid JSON format in request body',
-      details: 'Please check for special characters that need escaping',
-      position: err.message.match(/position (\d+)/)?.[1] || 'unknown',
-      rawBodyPreview: req.rawBody?.toString()?.substring(0, 200) || 'No raw body'
+      error: 'Formato JSON inválido en el cuerpo de la petición',
+      details: process.env.NODE_ENV === 'development' 
+        ? `Carácter problemático: "${problemChar}" en posición ${position}` 
+        : 'Verifique que la contraseña no contenga caracteres especiales problemáticos',
+      position,
+      hint: 'Las contraseñas con comillas dobles (") o barras inversas (\\) pueden causar problemas'
     });
   }
   next(err);

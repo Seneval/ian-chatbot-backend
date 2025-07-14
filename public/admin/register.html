@@ -226,6 +226,17 @@
             const formData = new FormData(form);
             const data = Object.fromEntries(formData);
             
+            // Validate password for problematic characters
+            const problematicChars = /["\\\r\n\t]/;
+            if (problematicChars.test(data.password)) {
+                message.className = 'message error';
+                message.innerHTML = 'La contraseña contiene caracteres no permitidos: comillas dobles ("), barras inversas (\\), o saltos de línea';
+                message.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Crear Cuenta';
+                return;
+            }
+            
             try {
                 const response = await fetch('/api/register/', {
                     method: 'POST',

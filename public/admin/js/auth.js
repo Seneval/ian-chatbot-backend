@@ -55,6 +55,17 @@ async function handleLogin(e) {
     const loginBtn = document.getElementById('loginBtn');
     const errorMessage = document.getElementById('errorMessage');
     
+    // Validate password for problematic characters
+    const problematicChars = /["\\\r\n\t]/;
+    if (problematicChars.test(password)) {
+        showError('La contraseña contiene caracteres no permitidos: comillas dobles ("), barras inversas (\\), o saltos de línea');
+        // Reset button state
+        loginBtn.disabled = false;
+        loginBtn.querySelector('.btn-text').style.display = 'inline';
+        loginBtn.querySelector('.btn-loader').style.display = 'none';
+        return;
+    }
+    
     // Show loading state
     loginBtn.disabled = true;
     loginBtn.querySelector('.btn-text').style.display = 'none';
@@ -100,12 +111,30 @@ async function handleLogin(e) {
                 `;
                 errorMessage.className = 'error-message';
                 errorMessage.style.display = 'block';
+            } else if (data.error && data.error.includes('JSON')) {
+                // Handle JSON parsing errors specifically
+                errorMessage.innerHTML = `
+                    <div style="margin-bottom: 10px;">Error con caracteres especiales en la contraseña</div>
+                    <div style="font-size: 12px; color: #666;">
+                        ${data.hint || 'Evite usar comillas dobles (") o barras inversas (\\) en su contraseña'}
+                    </div>
+                `;
+                errorMessage.className = 'error-message';
+                errorMessage.style.display = 'block';
             } else {
                 throw new Error(data.error || 'Error al iniciar sesión');
             }
         }
     } catch (error) {
-        errorMessage.textContent = error.message;
+        // Handle network errors and other exceptions
+        let errorMsg = error.message;
+        if (error.message.includes('Failed to fetch')) {
+            errorMsg = 'Error de conexión. Verifique su conexión a internet.';
+        } else if (error.name === 'SyntaxError' && error.message.includes('JSON')) {
+            errorMsg = 'Error de formato. Verifique que su contraseña no contenga caracteres especiales problemáticos.';
+        }
+        
+        errorMessage.textContent = errorMsg;
         errorMessage.className = 'error-message';
         errorMessage.style.display = 'block';
         
