@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conflicto de Cuenta - iAN Admin</title>
+    <link rel="stylesheet" href="/admin/css/admin.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .conflict-container {
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 2rem;
+            background: var(--white);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .conflict-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .conflict-header h2 {
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+        }
+        
+        .conflict-header p {
+            color: var(--gray-600);
+        }
+        
+        .conflict-option {
+            padding: 1.5rem;
+            border: 2px solid var(--gray-200);
+            border-radius: var(--radius);
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .conflict-option:hover {
+            border-color: var(--primary);
+            box-shadow: var(--shadow);
+        }
+        
+        .conflict-option h3 {
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+        }
+        
+        .conflict-option p {
+            color: var(--gray-600);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .link-form {
+            padding: 1.5rem;
+            background: var(--gray-50);
+            border-radius: var(--radius);
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body class="login-page">
+    <div class="conflict-container">
+        <div class="conflict-header">
+            <h1 class="logo">iAN</h1>
+            <h2>Cuenta Existente Detectada</h2>
+            <p id="conflictMessage">Encontramos una cuenta con este correo electrónico</p>
+        </div>
+        
+        <div id="conflictOptions">
+            <!-- Options will be populated by JavaScript -->
+        </div>
+        
+        <div id="linkAccountForm" class="hidden">
+            <form id="linkForm" class="login-form">
+                <h3>Vincular con tu Cuenta Existente</h3>
+                <p class="form-description">Ingresa tu contraseña actual para vincular tu cuenta con Google</p>
+                
+                <div class="form-group">
+                    <label for="password">Contraseña</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        required 
+                        placeholder="Tu contraseña actual"
+                    >
+                </div>
+                
+                <button type="submit" class="btn btn-primary">
+                    <span class="btn-text">Vincular Cuenta</span>
+                    <span class="btn-loader" style="display: none;">
+                        <svg class="spinner" viewBox="0 0 50 50">
+                            <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
+                        </svg>
+                    </span>
+                </button>
+                
+                <button type="button" class="btn btn-secondary" onclick="cancelLink()">
+                    Cancelar
+                </button>
+                
+                <div id="errorMessage" class="error-message" style="display: none;"></div>
+            </form>
+        </div>
+        
+        <div id="createTenantForm" class="hidden">
+            <form id="tenantForm" class="login-form">
+                <h3>Crear Nueva Organización</h3>
+                <p class="form-description">Completa los datos para crear tu organización</p>
+                
+                <div class="form-group">
+                    <label for="tenantName">Nombre de la Empresa</label>
+                    <input 
+                        type="text" 
+                        id="tenantName" 
+                        name="tenantName" 
+                        required 
+                        placeholder="Mi Empresa S.A. de C.V."
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label for="tenantSlug">URL de la Empresa</label>
+                    <div class="input-group">
+                        <span class="input-prefix">app.ian.com/</span>
+                        <input 
+                            type="text" 
+                            id="tenantSlug" 
+                            name="tenantSlug" 
+                            required 
+                            placeholder="mi-empresa"
+                            pattern="[a-z0-9-]+"
+                        >
+                    </div>
+                    <small class="form-hint">Solo letras minúsculas, números y guiones</small>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">
+                    <span class="btn-text">Crear Organización</span>
+                    <span class="btn-loader" style="display: none;">
+                        <svg class="spinner" viewBox="0 0 50 50">
+                            <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
+                        </svg>
+                    </span>
+                </button>
+                
+                <button type="button" class="btn btn-secondary" onclick="cancelTenant()">
+                    Cancelar
+                </button>
+                
+                <div id="tenantErrorMessage" class="error-message" style="display: none;"></div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const conflict = urlParams.get('conflict');
+        const token = urlParams.get('token');
+        const email = urlParams.get('email');
+        const isGoogle = urlParams.get('google') === 'true';
+        
+        // Store token for later use
+        let tempToken = token;
+        
+        // Display appropriate conflict options
+        function displayConflictOptions() {
+            const optionsDiv = document.getElementById('conflictOptions');
+            
+            if (conflict === 'no_tenant') {
+                document.getElementById('conflictMessage').textContent = 
+                    'Tu cuenta existe pero no está asociada a ninguna organización';
+                
+                optionsDiv.innerHTML = `
+                    <div class="conflict-option" onclick="showCreateTenant()">
+                        <h3>Crear Nueva Organización</h3>
+                        <p>Crea una nueva organización para tu empresa</p>
+                        <button class="btn btn-primary">Crear Organización</button>
+                    </div>
+                    
+                    <div class="conflict-option" onclick="window.location.href='/admin/login.html'">
+                        <h3>Contactar Administrador</h3>
+                        <p>Si tu organización ya existe, contacta al administrador para que te agregue</p>
+                        <button class="btn btn-secondary">Volver al Login</button>
+                    </div>
+                `;
+            } else if (conflict === 'existing_user') {
+                document.getElementById('conflictMessage').textContent = 
+                    `Encontramos una cuenta con el correo ${email || 'este correo'}`;
+                
+                optionsDiv.innerHTML = `
+                    <div class="conflict-option" onclick="showLinkAccount()">
+                        <h3>Vincular con mi Cuenta Existente</h3>
+                        <p>Vincula tu cuenta de Google con tu cuenta existente</p>
+                        <button class="btn btn-primary">Vincular Cuenta</button>
+                    </div>
+                    
+                    <div class="conflict-option" onclick="window.location.href='/admin/login.html'">
+                        <h3>Usar Contraseña</h3>
+                        <p>Inicia sesión con tu usuario y contraseña tradicional</p>
+                        <button class="btn btn-secondary">Ir al Login</button>
+                    </div>
+                `;
+            }
+        }
+        
+        function showLinkAccount() {
+            document.getElementById('conflictOptions').classList.add('hidden');
+            document.getElementById('linkAccountForm').classList.remove('hidden');
+        }
+        
+        function cancelLink() {
+            document.getElementById('linkAccountForm').classList.add('hidden');
+            document.getElementById('conflictOptions').classList.remove('hidden');
+        }
+        
+        function showCreateTenant() {
+            document.getElementById('conflictOptions').classList.add('hidden');
+            document.getElementById('createTenantForm').classList.remove('hidden');
+        }
+        
+        function cancelTenant() {
+            document.getElementById('createTenantForm').classList.add('hidden');
+            document.getElementById('conflictOptions').classList.remove('hidden');
+        }
+        
+        // Handle link account form submission
+        document.getElementById('linkForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const password = document.getElementById('password').value;
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const btnText = submitBtn.querySelector('.btn-text');
+            const btnLoader = submitBtn.querySelector('.btn-loader');
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            btnText.style.display = 'none';
+            btnLoader.style.display = 'inline-block';
+            
+            try {
+                const response = await fetch('/api/supabase-auth/link-account', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: tempToken, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    localStorage.setItem('token', data.token);
+                    window.location.href = '/admin/dashboard.html';
+                } else {
+                    showError(data.error || 'Error al vincular cuenta');
+                }
+            } catch (error) {
+                showError('Error de conexión. Por favor intente nuevamente.');
+            } finally {
+                submitBtn.disabled = false;
+                btnText.style.display = 'inline-block';
+                btnLoader.style.display = 'none';
+            }
+        });
+        
+        // Handle create tenant form submission
+        document.getElementById('tenantForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const tenantName = document.getElementById('tenantName').value;
+            const tenantSlug = document.getElementById('tenantSlug').value;
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const btnText = submitBtn.querySelector('.btn-text');
+            const btnLoader = submitBtn.querySelector('.btn-loader');
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            btnText.style.display = 'none';
+            btnLoader.style.display = 'inline-block';
+            
+            try {
+                const response = await fetch('/api/supabase-auth/complete-registration', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        token: tempToken, 
+                        tenantName, 
+                        tenantSlug 
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    localStorage.setItem('token', data.token);
+                    window.location.href = '/admin/dashboard.html';
+                } else {
+                    showTenantError(data.error || 'Error al crear organización');
+                }
+            } catch (error) {
+                showTenantError('Error de conexión. Por favor intente nuevamente.');
+            } finally {
+                submitBtn.disabled = false;
+                btnText.style.display = 'inline-block';
+                btnLoader.style.display = 'none';
+            }
+        });
+        
+        function showError(message) {
+            const errorElement = document.getElementById('errorMessage');
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+            
+            setTimeout(() => {
+                errorElement.style.display = 'none';
+            }, 5000);
+        }
+        
+        function showTenantError(message) {
+            const errorElement = document.getElementById('tenantErrorMessage');
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+            
+            setTimeout(() => {
+                errorElement.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Auto-generate slug from name
+        document.getElementById('tenantName')?.addEventListener('input', (e) => {
+            const name = e.target.value;
+            const slug = name
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '');
+            document.getElementById('tenantSlug').value = slug;
+        });
+        
+        // Initialize page
+        if (token && conflict) {
+            displayConflictOptions();
+        } else {
+            window.location.href = '/admin/login.html';
+        }
+    </script>
+</body>
+</html>

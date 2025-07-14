@@ -278,6 +278,8 @@ app.use('/api/chat', validateClient, chatRoutes);
 app.use('/api/chat-demo', validateClient, chatDemoRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/auth', authRoutes); // Legacy admin auth
+app.use('/api/supabase-auth', require('./api/supabase-auth')); // Supabase OAuth
+app.use('/api/config', require('./api/config')); // Public configuration
 
 // Widget serving
 app.get('/widget.js', (req, res) => {
