@@ -20,21 +20,18 @@ router.get('/callback', async (req, res) => {
       return res.status(503).json({ error: 'Supabase not available' });
     }
 
-    const { access_token, refresh_token } = req.query;
+    const { code } = req.query;
     
-    if (!access_token) {
-      return res.redirect('/admin/login.html?error=no_token');
+    if (!code) {
+      return res.redirect('/admin/login.html?error=no_code');
     }
 
-    // Set the session using the tokens from the URL
-    const { data: { user }, error } = await supabase.auth.setSession({
-      access_token,
-      refresh_token
-    });
+    // Exchange the code for a session (PKCE flow)
+    const { data: { user }, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error || !user) {
-      console.error('Supabase session error:', error);
-      return res.redirect('/admin/login.html?error=invalid_session');
+      console.error('Supabase code exchange error:', error);
+      return res.redirect('/admin/login.html?error=invalid_code');
     }
 
     // Extract user info

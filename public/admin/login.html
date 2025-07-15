@@ -140,13 +140,17 @@
                 const { data, error } = await supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
-                        redirectTo: `${window.location.origin}/api/supabase-auth/callback`
+                        redirectTo: `${window.location.origin}/api/supabase-auth/callback`,
+                        skipBrowserRedirect: false // Ensure we use standard redirect flow for PKCE
                     }
                 });
                 
                 if (error) {
                     console.error('Google OAuth error:', error);
                     showError('Error al iniciar sesión con Google');
+                } else if (data?.url) {
+                    // For server-side flow, we need to manually redirect
+                    window.location.href = data.url;
                 }
             } catch (error) {
                 console.error('Supabase error:', error);
@@ -186,7 +190,11 @@
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('error')) {
             const error = urlParams.get('error');
-            if (error === 'no_token') {
+            if (error === 'no_code') {
+                showError('Error de autenticación. Por favor intente nuevamente.');
+            } else if (error === 'invalid_code') {
+                showError('Código de autorización inválido. Por favor intente nuevamente.');
+            } else if (error === 'no_token') {
                 showError('Error de autenticación. Por favor intente nuevamente.');
             } else if (error === 'invalid_session') {
                 showError('Sesión inválida. Por favor intente nuevamente.');
