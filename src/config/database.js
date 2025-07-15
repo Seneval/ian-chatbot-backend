@@ -68,4 +68,9 @@ const connectDB = async () => {
   }
 };
 
-module.exports = { connectDB };
+// Helper function to check if MongoDB is available
+const isMongoDBAvailable = () => {
+  return isConnected && mongoose.connection.readyState === 1;
+};
+
+module.exports = { connectDB, isMongoDBAvailable };
