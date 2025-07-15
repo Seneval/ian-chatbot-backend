@@ -510,17 +510,42 @@
             }
             
             try {
-                const response = await fetch('/api/register/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data)
-                });
+                let response;
+                
+                if (oauthToken) {
+                    // OAuth registration - use different endpoint
+                    response = await fetch('/api/supabase-auth/complete-registration', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            token: oauthToken,
+                            tenantName: data.companyName,
+                            tenantSlug: data.companyName.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+                        })
+                    });
+                } else {
+                    // Regular registration
+                    response = await fetch('/api/register/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(data)
+                    });
+                }
                 
                 const result = await response.json();
                 
-                if (response.ok && result.success) {
+                if (response.ok && (result.success || result.token)) {
+                    // OAuth registration returns token directly
+                    if (oauthToken && result.token) {
+                        localStorage.setItem('token', result.token);
+                        window.location.href = '/admin/dashboard.html';
+                        return;
+                    }
+                    
                     message.className = 'message success';
                     
                     // Check if email verification is needed
@@ -528,7 +553,7 @@
                     const nextSteps = result.nextSteps || [];
                     
                     let messageHTML = `<strong>¡Cuenta creada exitosamente!</strong><br>`;
-                    messageHTML += `Empresa: ${result.tenant.name}<br><br>`;
+                    messageHTML += `Empresa: ${result.tenant?.name || data.companyName}<br><br>`;
                     
                     if (needsVerification) {
                         // Hide the form completely
