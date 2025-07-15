@@ -113,7 +113,12 @@
                 config = await response.json();
                 
                 if (config.features.googleAuth && config.supabase) {
-                    supabase = createClient(config.supabase.url, config.supabase.anonKey);
+                    supabase = createClient(config.supabase.url, config.supabase.anonKey, {
+                        auth: {
+                            flowType: 'pkce', // Use PKCE flow for OAuth
+                            detectSessionInUrl: false // We'll handle the callback manually
+                        }
+                    });
                     document.getElementById('googleSignInBtn').style.display = 'flex';
                 } else {
                     document.getElementById('googleSignInBtn').style.display = 'none';
