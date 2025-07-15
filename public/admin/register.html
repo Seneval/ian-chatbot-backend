@@ -185,6 +185,31 @@
         const availability = document.getElementById('availability');
         
         let checkTimeout;
+        let oauthToken = null;
+        
+        // Check for OAuth parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('oauth') && urlParams.has('token')) {
+            oauthToken = urlParams.get('token');
+            
+            // Decode token to pre-fill form
+            try {
+                const payload = JSON.parse(atob(oauthToken.split('.')[1]));
+                if (payload.email) {
+                    document.getElementById('adminEmail').value = payload.email;
+                    document.getElementById('adminEmail').readOnly = true;
+                }
+                if (payload.name) {
+                    document.getElementById('adminName').value = payload.name;
+                }
+                
+                // Hide password field for OAuth users
+                const passwordGroup = document.querySelector('input[name="adminPassword"]').closest('.form-group');
+                passwordGroup.style.display = 'none';
+            } catch (error) {
+                console.error('Error parsing OAuth token:', error);
+            }
+        }
         
         // Check company name availability
         companyNameInput.addEventListener('input', () => {
@@ -226,9 +251,43 @@
             const formData = new FormData(form);
             const data = Object.fromEntries(formData);
             
-            // Validate password for problematic characters
+            // Handle OAuth registration differently
+            if (oauthToken) {
+                try {
+                    const response = await fetch('/api/supabase-auth/complete-registration', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            token: oauthToken,
+                            tenantName: data.companyName,
+                            tenantSlug: data.companyName.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok && result.token) {
+                        localStorage.setItem('token', result.token);
+                        window.location.href = '/admin/dashboard.html';
+                        return;
+                    } else {
+                        throw new Error(result.error || 'Error al completar registro');
+                    }
+                } catch (error) {
+                    message.className = 'message error';
+                    message.textContent = error.message;
+                    message.style.display = 'block';
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Crear Cuenta';
+                    return;
+                }
+            }
+            
+            // Validate password for problematic characters (only for non-OAuth)
             const problematicChars = /["\\\r\n\t]/;
-            if (problematicChars.test(data.password)) {
+            if (data.adminPassword && problematicChars.test(data.adminPassword)) {
                 message.className = 'message error';
                 message.innerHTML = 'La contraseña contiene caracteres no permitidos: comillas dobles ("), barras inversas (\\), o saltos de línea';
                 message.style.display = 'block';
