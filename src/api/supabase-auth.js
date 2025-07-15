@@ -112,6 +112,7 @@ router.post('/session', async (req, res) => {
 
   } catch (error) {
     console.error('OAuth session error:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({ error: 'Error al procesar la sesión' });
   }
 });

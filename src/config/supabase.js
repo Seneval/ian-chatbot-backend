@@ -14,8 +14,7 @@ const supabase = supabaseUrl && supabaseAnonKey
       auth: {
         autoRefreshToken: true,
         persistSession: false, // Server-side, no session persistence needed
-        detectSessionInUrl: false,
-        flowType: 'pkce' // Use PKCE flow for server-side OAuth
+        detectSessionInUrl: false
       }
     })
   : null;
