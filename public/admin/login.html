@@ -138,6 +138,18 @@
         // Load config on page load
         loadConfig();
         
+        // Global logout function for Supabase
+        window.logoutSupabase = async function() {
+            if (supabase) {
+                const { error } = await supabase.auth.signOut();
+                if (error) {
+                    console.error('Supabase logout error:', error);
+                    throw error;
+                }
+                console.log('Successfully logged out of Supabase');
+            }
+        };
+        
         // Check for Supabase session after OAuth redirect
         async function checkSession() {
             if (!supabase) return;
@@ -146,7 +158,11 @@
                 const { data: { session }, error } = await supabase.auth.getSession();
                 
                 if (session?.user) {
-                    console.log('OAuth session detected:', session.user.email);
+                    console.log('OAuth session detected:', {
+                        email: session.user.email,
+                        id: session.user.id,
+                        provider: session.user.app_metadata?.provider
+                    });
                     
                     // Send session to our backend
                     const response = await fetch('/api/supabase-auth/session', {
@@ -167,18 +183,27 @@
                     });
                     
                     const data = await response.json();
+                    console.log('🔍 Backend response:', {
+                        status: response.status,
+                        ok: response.ok,
+                        data: data
+                    });
                     
                     if (response.ok && data.token) {
+                        console.log('✅ User authenticated, redirecting to dashboard');
                         // Store our backend token and redirect
                         localStorage.setItem('token', data.token);
                         window.location.href = '/admin/dashboard.html';
                     } else if (data.requiresRegistration) {
+                        console.log('📝 User needs registration, redirecting to register');
                         // Redirect to registration with OAuth data
                         window.location.href = `/admin/register.html?oauth=true&token=${encodeURIComponent(data.tempToken)}`;
                     } else if (data.conflict) {
+                        console.log('⚠️ Conflict detected:', data.conflict);
                         // Handle conflicts
                         window.location.href = `/admin/oauth-conflict.html?conflict=${data.conflict}&token=${encodeURIComponent(data.tempToken)}&email=${encodeURIComponent(session.user.email)}`;
                     } else {
+                        console.error('❌ Authentication error:', data.error);
                         showError(data.error || 'Error al procesar la autenticación');
                     }
                 }

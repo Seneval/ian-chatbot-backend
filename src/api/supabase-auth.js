@@ -57,6 +57,19 @@ router.post('/session', async (req, res) => {
         ]
       });
       console.log('📊 MongoDB search result:', existingUser ? 'User found' : 'User not found');
+      
+      // Additional debugging - search by each field separately
+      if (!existingUser) {
+        const byEmail = await User.findOne({ email });
+        const byGoogleId = await User.findOne({ googleId });
+        const bySupabaseId = await User.findOne({ supabaseUserId: googleId });
+        
+        console.log('🔍 Debug search results:', {
+          byEmail: byEmail ? `Found user with tenantId: ${byEmail.tenantId}` : 'Not found by email',
+          byGoogleId: byGoogleId ? `Found with googleId field` : 'Not found by googleId',
+          bySupabaseId: bySupabaseId ? `Found with supabaseUserId field` : 'Not found by supabaseUserId'
+        });
+      }
     } else {
       existingUser = Array.from(inMemoryStorage.users.values()).find(u => 
         u.email === email || u.googleId === googleId || u.supabaseUserId === googleId
@@ -193,6 +206,12 @@ router.post('/complete-registration', async (req, res) => {
     if (!tokenData.googleId || !tokenData.email) {
       return res.status(400).json({ error: 'Invalid token data' });
     }
+
+    console.log('🔐 Token data:', {
+      email: tokenData.email,
+      googleId: tokenData.googleId,
+      name: tokenData.name
+    });
 
     // Check if tenant slug already exists
     let existingTenant;

@@ -164,9 +164,20 @@ async function handleLogin(e) {
 }
 
 // Logout function (to be used from dashboard)
-function logout() {
+async function logout() {
+    // Remove our JWT tokens
     localStorage.removeItem(AUTH_TOKEN_KEY);
     sessionStorage.removeItem(AUTH_TOKEN_KEY);
+    
+    // If Supabase logout function exists, call it
+    if (typeof window.logoutSupabase === 'function') {
+        try {
+            await window.logoutSupabase();
+        } catch (error) {
+            console.error('Error logging out of Supabase:', error);
+        }
+    }
+    
     window.location.href = '/admin/login.html';
 }
 

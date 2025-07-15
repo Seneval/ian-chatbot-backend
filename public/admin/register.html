@@ -283,6 +283,18 @@
         // Load config on page load
         loadConfig();
         
+        // Global logout function for Supabase
+        window.logoutSupabase = async function() {
+            if (supabase) {
+                const { error } = await supabase.auth.signOut();
+                if (error) {
+                    console.error('Supabase logout error:', error);
+                    throw error;
+                }
+                console.log('Successfully logged out of Supabase');
+            }
+        };
+        
         // Check for Supabase session after OAuth redirect
         async function checkSession() {
             if (!supabase) return;
@@ -291,7 +303,11 @@
                 const { data: { session }, error } = await supabase.auth.getSession();
                 
                 if (session?.user) {
-                    console.log('OAuth session detected:', session.user.email);
+                    console.log('OAuth session detected:', {
+                        email: session.user.email,
+                        id: session.user.id,
+                        provider: session.user.app_metadata?.provider
+                    });
                     
                     // Send session to our backend
                     const response = await fetch('/api/supabase-auth/session', {
