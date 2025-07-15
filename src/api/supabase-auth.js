@@ -26,13 +26,27 @@ router.get('/callback', async (req, res) => {
       return res.redirect('/admin/login.html?error=no_code');
     }
 
-    // Exchange the code for a session (PKCE flow)
-    const { data: { user }, error } = await supabase.auth.exchangeCodeForSession(code);
+    console.log('OAuth callback received with code:', code);
 
-    if (error || !user) {
+    // Exchange the code for a session (PKCE flow)
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+    if (error) {
       console.error('Supabase code exchange error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        status: error.status,
+        code: error.code
+      });
       return res.redirect('/admin/login.html?error=invalid_code');
     }
+
+    if (!data.user) {
+      console.error('No user data received after code exchange');
+      return res.redirect('/admin/login.html?error=invalid_code');
+    }
+
+    const user = data.user;
 
     // Extract user info
     const email = user.email;
