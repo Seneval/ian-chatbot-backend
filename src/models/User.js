@@ -17,6 +17,11 @@ const userSchema = new mongoose.Schema({
     unique: true,
     sparse: true
   },
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
   email: {
     type: String,
     required: true,
@@ -26,8 +31,16 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true,
+    required: function() {
+      // Password is required only if no OAuth method is used
+      return !this.googleId && !this.supabaseUserId;
+    },
     minlength: 6
+  },
+  authMethod: {
+    type: String,
+    enum: ['password', 'google', 'hybrid'],
+    default: 'password'
   },
   name: {
     type: String,
@@ -232,6 +245,9 @@ userSchema.statics.findByPasswordResetToken = function(token) {
 userSchema.pre('save', async function(next) {
   // Hash password if modified
   if (!this.isModified('password')) return next();
+  
+  // Skip hashing if no password (OAuth users)
+  if (!this.password) return next();
   
   try {
     const salt = await bcrypt.genSalt(12);

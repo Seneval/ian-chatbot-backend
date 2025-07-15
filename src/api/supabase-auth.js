@@ -46,6 +46,8 @@ router.post('/session', async (req, res) => {
 
     // Check if user exists
     let existingUser;
+    console.log('🔍 Checking for existing user:', { email, googleId });
+    
     if (isMongoDBAvailable()) {
       existingUser = await User.findOne({ 
         $or: [
@@ -54,10 +56,12 @@ router.post('/session', async (req, res) => {
           { supabaseUserId: googleId }
         ]
       });
+      console.log('📊 MongoDB search result:', existingUser ? 'User found' : 'User not found');
     } else {
       existingUser = Array.from(inMemoryStorage.users.values()).find(u => 
         u.email === email || u.googleId === googleId || u.supabaseUserId === googleId
       );
+      console.log('💾 In-memory search result:', existingUser ? 'User found' : 'User not found');
     }
 
     if (existingUser) {
@@ -99,6 +103,58 @@ router.post('/session', async (req, res) => {
       }
     } else {
       // New user - needs registration
+      console.log('👤 New user detected, needs registration');
+      
+      // BUT first, let's check if they might have partially registered
+      // Check by email only (maybe they registered with password before)
+      let userByEmail;
+      if (isMongoDBAvailable()) {
+        userByEmail = await User.findOne({ email });
+      } else {
+        userByEmail = Array.from(inMemoryStorage.users.values()).find(u => u.email === email);
+      }
+      
+      if (userByEmail) {
+        console.log('📧 Found user by email only - updating with Google ID');
+        // User exists with same email but no Google ID - link them
+        if (isMongoDBAvailable()) {
+          userByEmail.googleId = googleId;
+          userByEmail.supabaseUserId = googleId;
+          userByEmail.authMethod = 'hybrid';
+          await userByEmail.save();
+        } else {
+          userByEmail.googleId = googleId;
+          userByEmail.supabaseUserId = googleId;
+          userByEmail.authMethod = 'hybrid';
+          inMemoryStorage.users.set(userByEmail.userId, userByEmail);
+        }
+        
+        // Now log them in if they have a tenant
+        if (userByEmail.tenantId) {
+          const token = jwt.sign(
+            { 
+              userId: userByEmail.userId,
+              tenantId: userByEmail.tenantId,
+              email: userByEmail.email,
+              role: userByEmail.role,
+              authMethod: 'hybrid'
+            },
+            process.env.ADMIN_JWT_SECRET,
+            { expiresIn: '7d' }
+          );
+
+          return res.json({ 
+            token,
+            user: {
+              userId: userByEmail.userId,
+              email: userByEmail.email,
+              name: userByEmail.name,
+              role: userByEmail.role
+            }
+          });
+        }
+      }
+      
       const tempToken = jwt.sign(
         { email, googleId, name, authMethod: 'google' },
         process.env.ADMIN_JWT_SECRET,
@@ -181,11 +237,19 @@ router.post('/complete-registration', async (req, res) => {
       createdAt: new Date()
     };
 
+    console.log('👤 Creating user with data:', {
+      email: userData.email,
+      googleId: userData.googleId,
+      tenantId: userData.tenantId
+    });
+
     if (isMongoDBAvailable()) {
       const user = new User(userData);
       await user.save();
+      console.log('✅ User saved to MongoDB:', user.userId);
     } else {
       inMemoryStorage.users.set(userId, userData);
+      console.log('💾 User saved to in-memory storage');
     }
 
     // Generate auth token
