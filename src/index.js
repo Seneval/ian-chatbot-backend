@@ -227,6 +227,11 @@ app.get('/admin/', (req, res) => {
   res.redirect('/admin');
 });
 
+// Handle /admin/index.html route
+app.get('/admin/index.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/admin/dashboard.html'));
+});
+
 // Redirect /register to admin registration
 app.get('/register', (req, res) => {
   res.redirect('/admin/register.html');

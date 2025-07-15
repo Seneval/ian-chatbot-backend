@@ -180,7 +180,7 @@ const authenticatedFetch = (url, options = {}) => {
     const token = getToken();
     
     if (!token) {
-        window.location.href = 'index.html';
+        window.location.href = '/admin/login.html';
         return Promise.reject(new Error('No token found'));
     }
     
