@@ -115,11 +115,15 @@
                 if (config.features.googleAuth && config.supabase) {
                     supabase = createClient(config.supabase.url, config.supabase.anonKey, {
                         auth: {
-                            flowType: 'pkce', // Use PKCE flow for OAuth
-                            detectSessionInUrl: false // We'll handle the callback manually
+                            flowType: 'implicit', // Use implicit flow for simplicity
+                            detectSessionInUrl: true, // Let Supabase handle the redirect
+                            autoRefreshToken: true
                         }
                     });
                     document.getElementById('googleSignInBtn').style.display = 'flex';
+                    
+                    // Check if we have a session after OAuth redirect
+                    checkSession();
                 } else {
                     document.getElementById('googleSignInBtn').style.display = 'none';
                     document.querySelector('.divider').style.display = 'none';
@@ -134,6 +138,55 @@
         // Load config on page load
         loadConfig();
         
+        // Check for Supabase session after OAuth redirect
+        async function checkSession() {
+            if (!supabase) return;
+            
+            try {
+                const { data: { session }, error } = await supabase.auth.getSession();
+                
+                if (session?.user) {
+                    console.log('OAuth session detected:', session.user.email);
+                    
+                    // Send session to our backend
+                    const response = await fetch('/api/supabase-auth/session', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            user: {
+                                id: session.user.id,
+                                email: session.user.email,
+                                name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
+                                avatar_url: session.user.user_metadata?.avatar_url,
+                                provider: session.user.app_metadata?.provider || 'google'
+                            },
+                            access_token: session.access_token
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok && data.token) {
+                        // Store our backend token and redirect
+                        localStorage.setItem('token', data.token);
+                        window.location.href = '/admin/dashboard.html';
+                    } else if (data.requiresRegistration) {
+                        // Redirect to registration with OAuth data
+                        window.location.href = `/admin/register.html?oauth=true&token=${encodeURIComponent(data.tempToken)}`;
+                    } else if (data.conflict) {
+                        // Handle conflicts
+                        window.location.href = `/admin/oauth-conflict.html?conflict=${data.conflict}&token=${encodeURIComponent(data.tempToken)}&email=${encodeURIComponent(session.user.email)}`;
+                    } else {
+                        showError(data.error || 'Error al procesar la autenticación');
+                    }
+                }
+            } catch (error) {
+                console.error('Session check error:', error);
+            }
+        }
+        
         // Google Sign In Handler
         document.getElementById('googleSignInBtn').addEventListener('click', async () => {
             if (!supabase) {
@@ -145,17 +198,13 @@
                 const { data, error } = await supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
-                        redirectTo: `${window.location.origin}/api/supabase-auth/callback`,
-                        skipBrowserRedirect: false // Ensure we use standard redirect flow for PKCE
+                        redirectTo: `${window.location.origin}/admin/login.html`
                     }
                 });
                 
                 if (error) {
                     console.error('Google OAuth error:', error);
                     showError('Error al iniciar sesión con Google');
-                } else if (data?.url) {
-                    // For server-side flow, we need to manually redirect
-                    window.location.href = data.url;
                 }
             } catch (error) {
                 console.error('Supabase error:', error);
@@ -191,38 +240,11 @@
             }
         }
         
-        // Handle URL parameters (for OAuth callbacks)
+        // Handle URL parameters for error messages
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('error')) {
             const error = urlParams.get('error');
-            if (error === 'no_code') {
-                showError('Error de autenticación. Por favor intente nuevamente.');
-            } else if (error === 'invalid_code') {
-                showError('Código de autorización inválido. Por favor intente nuevamente.');
-            } else if (error === 'no_token') {
-                showError('Error de autenticación. Por favor intente nuevamente.');
-            } else if (error === 'invalid_session') {
-                showError('Sesión inválida. Por favor intente nuevamente.');
-            } else if (error === 'callback_failed') {
-                showError('Error al procesar la autenticación.');
-            }
-        }
-        
-        if (urlParams.has('conflict') && urlParams.has('token')) {
-            // Handle conflict scenarios
-            const conflict = urlParams.get('conflict');
-            const token = urlParams.get('token');
-            
-            if (conflict === 'no_tenant') {
-                showError('Su cuenta no está asociada a ninguna organización. Por favor contacte al administrador.');
-            }
-        }
-        
-        if (urlParams.has('token') && !urlParams.has('conflict')) {
-            // Direct token login from OAuth
-            const token = urlParams.get('token');
-            localStorage.setItem('token', token);
-            window.location.href = '/admin/dashboard.html';
+            showError('Error de autenticación. Por favor intente nuevamente.');
         }
     </script>
     <script src="/admin/js/auth.js"></script>

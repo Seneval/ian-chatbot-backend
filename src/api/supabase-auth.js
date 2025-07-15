@@ -13,40 +13,31 @@ const inMemoryStorage = {
   tenants: new Map()
 };
 
-// OAuth callback - handles the redirect from Google
-router.get('/callback', async (req, res) => {
+// Session validation endpoint - handles OAuth data from frontend
+router.post('/session', async (req, res) => {
   try {
     if (!isSupabaseAvailable()) {
       return res.status(503).json({ error: 'Supabase not available' });
     }
 
-    const { code } = req.query;
-    
-    if (!code) {
-      return res.redirect('/admin/login.html?error=no_code');
+    const { user: supabaseUser, access_token } = req.body;
+
+    if (!supabaseUser || !access_token) {
+      return res.status(400).json({ error: 'Missing user data or access token' });
     }
 
-    console.log('OAuth callback received with code:', code);
+    // Verify the session with Supabase
+    const { data: { user }, error } = await supabase.auth.getUser(access_token);
 
-    // Exchange the code for a session (PKCE flow)
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-
-    if (error) {
-      console.error('Supabase code exchange error:', error);
-      console.error('Error details:', {
-        message: error.message,
-        status: error.status,
-        code: error.code
-      });
-      return res.redirect('/admin/login.html?error=invalid_code');
+    if (error || !user) {
+      console.error('Invalid Supabase session:', error);
+      return res.status(401).json({ error: 'Invalid session' });
     }
 
-    if (!data.user) {
-      console.error('No user data received after code exchange');
-      return res.redirect('/admin/login.html?error=invalid_code');
+    // Ensure the user ID matches
+    if (user.id !== supabaseUser.id) {
+      return res.status(401).json({ error: 'Session mismatch' });
     }
-
-    const user = data.user;
 
     // Extract user info
     const email = user.email;
@@ -85,30 +76,43 @@ router.get('/callback', async (req, res) => {
           { expiresIn: '7d' }
         );
 
-        // Redirect with token
-        return res.redirect(`/admin/dashboard.html?token=${encodeURIComponent(token)}`);
+        return res.json({ 
+          token,
+          user: {
+            userId: existingUser.userId,
+            email: existingUser.email,
+            name: existingUser.name,
+            role: existingUser.role
+          }
+        });
       } else {
-        // User exists but no tenant - redirect to conflict page
+        // User exists but no tenant
         const tempToken = jwt.sign(
-          { email, googleId, authMethod: 'google' },
+          { email, googleId, name, authMethod: 'google' },
           process.env.ADMIN_JWT_SECRET,
           { expiresIn: '10m' }
         );
-        return res.redirect(`/admin/oauth-conflict.html?conflict=no_tenant&token=${encodeURIComponent(tempToken)}&email=${encodeURIComponent(email)}&google=true`);
+        return res.json({ 
+          conflict: 'no_tenant',
+          tempToken
+        });
       }
     } else {
-      // New user - redirect to registration with Google info
+      // New user - needs registration
       const tempToken = jwt.sign(
         { email, googleId, name, authMethod: 'google' },
         process.env.ADMIN_JWT_SECRET,
         { expiresIn: '10m' }
       );
-      return res.redirect(`/admin/register.html?google=true&token=${encodeURIComponent(tempToken)}`);
+      return res.json({ 
+        requiresRegistration: true,
+        tempToken
+      });
     }
 
   } catch (error) {
-    console.error('OAuth callback error:', error);
-    res.redirect('/admin/login.html?error=callback_failed');
+    console.error('OAuth session error:', error);
+    res.status(500).json({ error: 'Error al procesar la sesión' });
   }
 });
 
