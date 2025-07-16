@@ -106,20 +106,23 @@
         let supabase = null;
         let config = null;
         
-        // Fetch configuration
+        // Initialize Supabase configuration
         async function loadConfig() {
             try {
-                const response = await fetch('/api/config/public');
-                config = await response.json();
+                // Direct Supabase configuration (until we set up the config endpoint)
+                const supabaseUrl = 'https://gcuhsqmcsksbpaorcsag.supabase.co';
+                const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdWhzcW1jc2tzYnBhb3Jjc2FnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE1MTAzODIsImV4cCI6MjA2NzA4NjM4Mn0.j7G2FJjzPXdJpKOKfp5qDZDl0VLJHYpIGKKgvdCEP6A';
                 
-                if (config.features.googleAuth && config.supabase) {
-                    supabase = createClient(config.supabase.url, config.supabase.anonKey, {
+                if (supabaseUrl && supabaseAnonKey) {
+                    supabase = createClient(supabaseUrl, supabaseAnonKey, {
                         auth: {
-                            flowType: 'implicit', // Use implicit flow for simplicity
-                            detectSessionInUrl: true, // Let Supabase handle the redirect
-                            autoRefreshToken: true
+                            flowType: 'implicit',
+                            detectSessionInUrl: true,
+                            autoRefreshToken: true,
+                            persistSession: true
                         }
                     });
+                    
                     document.getElementById('googleSignInBtn').style.display = 'flex';
                     
                     // Check if we have a session after OAuth redirect
@@ -129,7 +132,7 @@
                     document.querySelector('.divider').style.display = 'none';
                 }
             } catch (error) {
-                console.error('Failed to load config:', error);
+                console.error('Failed to initialize Supabase:', error);
                 document.getElementById('googleSignInBtn').style.display = 'none';
                 document.querySelector('.divider').style.display = 'none';
             }

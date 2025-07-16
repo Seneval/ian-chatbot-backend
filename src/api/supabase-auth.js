@@ -44,129 +44,80 @@ router.post('/session', async (req, res) => {
     const googleId = user.id;
     const name = user.user_metadata?.full_name || email.split('@')[0];
 
-    // Check if user exists
-    let existingUser;
-    console.log('🔍 Checking for existing user:', { email, googleId });
+    // Check if tenant exists in Supabase database
+    let existingTenant;
+    console.log('🔍 Checking for existing tenant:', { email, googleId });
     
-    if (isMongoDBAvailable()) {
-      existingUser = await User.findOne({ 
-        $or: [
-          { email },
-          { googleId },
-          { supabaseUserId: googleId }
-        ]
-      });
-      console.log('📊 MongoDB search result:', existingUser ? 'User found' : 'User not found');
-      
-      // Additional debugging - search by each field separately
-      if (!existingUser) {
-        const byEmail = await User.findOne({ email });
-        const byGoogleId = await User.findOne({ googleId });
-        const bySupabaseId = await User.findOne({ supabaseUserId: googleId });
-        
-        console.log('🔍 Debug search results:', {
-          byEmail: byEmail ? `Found user with tenantId: ${byEmail.tenantId}` : 'Not found by email',
-          byGoogleId: byGoogleId ? `Found with googleId field` : 'Not found by googleId',
-          bySupabaseId: bySupabaseId ? `Found with supabaseUserId field` : 'Not found by supabaseUserId'
-        });
-      }
-    } else {
-      existingUser = Array.from(inMemoryStorage.users.values()).find(u => 
-        u.email === email || u.googleId === googleId || u.supabaseUserId === googleId
-      );
-      console.log('💾 In-memory search result:', existingUser ? 'User found' : 'User not found');
+    const { data: tenantData, error: tenantError } = await supabase
+      .from('tenants')
+      .select('*')
+      .or(`email.eq.${email},google_id.eq.${googleId}`)
+      .single();
+
+    if (tenantError && tenantError.code !== 'PGRST116') { // PGRST116 = no rows found
+      console.error('Error checking existing tenant:', tenantError);
+      return res.status(500).json({ error: 'Database error' });
     }
 
-    if (existingUser) {
-      // User exists - check tenant association
-      if (existingUser.tenantId) {
-        // User has tenant - log them in
-        const token = jwt.sign(
-          { 
-            userId: existingUser.userId,
-            tenantId: existingUser.tenantId,
-            email: existingUser.email,
-            role: existingUser.role,
-            authMethod: 'google'
-          },
-          process.env.ADMIN_JWT_SECRET,
-          { expiresIn: '7d' }
-        );
+    existingTenant = tenantData;
+    console.log('🏢 Supabase tenant search result:', existingTenant ? 'Tenant found' : 'Tenant not found');
 
-        return res.json({ 
-          token,
-          user: {
-            userId: existingUser.userId,
-            email: existingUser.email,
-            name: existingUser.name,
-            role: existingUser.role
-          }
-        });
-      } else {
-        // User exists but no tenant
-        const tempToken = jwt.sign(
-          { email, googleId, name, authMethod: 'google' },
-          process.env.ADMIN_JWT_SECRET,
-          { expiresIn: '10m' }
-        );
-        return res.json({ 
-          conflict: 'no_tenant',
-          tempToken
-        });
+    if (existingTenant) {
+      // Tenant exists - log them in
+      console.log('✅ Tenant found:', {
+        id: existingTenant.id,
+        email: existingTenant.email,
+        plan: existingTenant.plan
+      });
+
+      // Update Google ID if not set
+      if (!existingTenant.google_id && googleId) {
+        const { error: updateError } = await supabase
+          .from('tenants')
+          .update({ google_id: googleId })
+          .eq('id', existingTenant.id);
+
+        if (updateError) {
+          console.error('Error updating Google ID:', updateError);
+        } else {
+          console.log('✅ Updated tenant with Google ID');
+        }
       }
+
+      // Determine if this is a super admin
+      const isSuperAdmin = existingTenant.email === 'patriciohml@gmail.com';
+
+      const token = jwt.sign(
+        { 
+          tenantId: existingTenant.id,
+          email: existingTenant.email,
+          name: name,
+          role: isSuperAdmin ? 'super_admin' : 'owner',
+          plan: existingTenant.plan,
+          authMethod: 'google'
+        },
+        process.env.ADMIN_JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+
+      return res.json({ 
+        token,
+        tenant: {
+          id: existingTenant.id,
+          name: existingTenant.name,
+          slug: existingTenant.slug,
+          email: existingTenant.email,
+          plan: existingTenant.plan
+        },
+        user: {
+          email: existingTenant.email,
+          name: name,
+          role: isSuperAdmin ? 'super_admin' : 'owner'
+        }
+      });
     } else {
       // New user - needs registration
       console.log('👤 New user detected, needs registration');
-      
-      // BUT first, let's check if they might have partially registered
-      // Check by email only (maybe they registered with password before)
-      let userByEmail;
-      if (isMongoDBAvailable()) {
-        userByEmail = await User.findOne({ email });
-      } else {
-        userByEmail = Array.from(inMemoryStorage.users.values()).find(u => u.email === email);
-      }
-      
-      if (userByEmail) {
-        console.log('📧 Found user by email only - updating with Google ID');
-        // User exists with same email but no Google ID - link them
-        if (isMongoDBAvailable()) {
-          userByEmail.googleId = googleId;
-          userByEmail.supabaseUserId = googleId;
-          userByEmail.authMethod = 'hybrid';
-          await userByEmail.save();
-        } else {
-          userByEmail.googleId = googleId;
-          userByEmail.supabaseUserId = googleId;
-          userByEmail.authMethod = 'hybrid';
-          inMemoryStorage.users.set(userByEmail.userId, userByEmail);
-        }
-        
-        // Now log them in if they have a tenant
-        if (userByEmail.tenantId) {
-          const token = jwt.sign(
-            { 
-              userId: userByEmail.userId,
-              tenantId: userByEmail.tenantId,
-              email: userByEmail.email,
-              role: userByEmail.role,
-              authMethod: 'hybrid'
-            },
-            process.env.ADMIN_JWT_SECRET,
-            { expiresIn: '7d' }
-          );
-
-          return res.json({ 
-            token,
-            user: {
-              userId: userByEmail.userId,
-              email: userByEmail.email,
-              name: userByEmail.name,
-              role: userByEmail.role
-            }
-          });
-        }
-      }
       
       const tempToken = jwt.sign(
         { email, googleId, name, authMethod: 'google' },
@@ -186,9 +137,13 @@ router.post('/session', async (req, res) => {
   }
 });
 
-// Complete registration for Google OAuth users
+// Complete registration for Google OAuth users - Uses Supabase database
 router.post('/complete-registration', async (req, res) => {
   try {
+    if (!isSupabaseAvailable()) {
+      return res.status(503).json({ error: 'Supabase not available' });
+    }
+
     const { token, tenantName, tenantSlug } = req.body;
 
     if (!token || !tenantName || !tenantSlug) {
@@ -214,70 +169,75 @@ router.post('/complete-registration', async (req, res) => {
     });
 
     // Check if tenant slug already exists
-    let existingTenant;
-    if (isMongoDBAvailable()) {
-      existingTenant = await Tenant.findOne({ slug: tenantSlug });
-    } else {
-      existingTenant = Array.from(inMemoryStorage.tenants.values()).find(t => t.slug === tenantSlug);
+    const { data: existingTenant, error: tenantCheckError } = await supabase
+      .from('tenants')
+      .select('id')
+      .eq('slug', tenantSlug)
+      .single();
+
+    if (tenantCheckError && tenantCheckError.code !== 'PGRST116') { // PGRST116 = no rows found
+      console.error('Error checking tenant slug:', tenantCheckError);
+      return res.status(500).json({ error: 'Error checking tenant availability' });
     }
 
     if (existingTenant) {
       return res.status(400).json({ error: 'Tenant slug already exists' });
     }
 
-    // Create tenant
-    const tenantId = uuidv4();
-    const tenantData = {
-      tenantId,
-      name: tenantName,
-      slug: tenantSlug,
-      createdAt: new Date()
-    };
+    // Check if user email already exists
+    const { data: existingUser, error: userCheckError } = await supabase
+      .from('tenants')
+      .select('id, email')
+      .eq('email', tokenData.email)
+      .single();
 
-    if (isMongoDBAvailable()) {
-      const tenant = new Tenant(tenantData);
-      await tenant.save();
-    } else {
-      inMemoryStorage.tenants.set(tenantId, tenantData);
+    if (userCheckError && userCheckError.code !== 'PGRST116') {
+      console.error('Error checking user email:', userCheckError);
+      return res.status(500).json({ error: 'Error checking user availability' });
     }
 
-    // Create user
-    const userId = uuidv4();
-    const userData = {
-      userId,
-      tenantId,
-      email: tokenData.email,
-      name: tokenData.name || tokenData.email.split('@')[0],
-      googleId: tokenData.googleId,
-      supabaseUserId: tokenData.googleId,
-      role: 'owner',
-      authMethod: 'google',
-      isEmailVerified: true, // Google emails are pre-verified
-      createdAt: new Date()
-    };
+    if (existingUser) {
+      return res.status(400).json({ error: 'Email already registered' });
+    }
 
-    console.log('👤 Creating user with data:', {
-      email: userData.email,
-      googleId: userData.googleId,
-      tenantId: userData.tenantId
+    // Determine if this is a super admin
+    const isSuperAdmin = tokenData.email === 'patriciohml@gmail.com';
+    const plan = isSuperAdmin ? 'super_admin' : 'free';
+
+    // Create tenant in Supabase
+    const { data: newTenant, error: tenantCreateError } = await supabase
+      .from('tenants')
+      .insert([{
+        name: tenantName,
+        slug: tenantSlug,
+        email: tokenData.email,
+        google_id: tokenData.googleId,
+        plan: plan,
+        is_active: true
+      }])
+      .select()
+      .single();
+
+    if (tenantCreateError) {
+      console.error('Error creating tenant:', tenantCreateError);
+      return res.status(500).json({ error: 'Failed to create tenant' });
+    }
+
+    console.log('✅ Tenant created:', {
+      id: newTenant.id,
+      name: newTenant.name,
+      email: newTenant.email,
+      plan: newTenant.plan
     });
 
-    if (isMongoDBAvailable()) {
-      const user = new User(userData);
-      await user.save();
-      console.log('✅ User saved to MongoDB:', user.userId);
-    } else {
-      inMemoryStorage.users.set(userId, userData);
-      console.log('💾 User saved to in-memory storage');
-    }
-
-    // Generate auth token
+    // Generate auth token with tenant context
     const authToken = jwt.sign(
       { 
-        userId,
-        tenantId,
-        email: userData.email,
-        role: userData.role,
+        tenantId: newTenant.id,
+        email: newTenant.email,
+        name: tokenData.name || tokenData.email.split('@')[0],
+        role: isSuperAdmin ? 'super_admin' : 'owner',
+        plan: newTenant.plan,
         authMethod: 'google'
       },
       process.env.ADMIN_JWT_SECRET,
@@ -286,11 +246,17 @@ router.post('/complete-registration', async (req, res) => {
 
     res.json({ 
       token: authToken,
+      tenant: {
+        id: newTenant.id,
+        name: newTenant.name,
+        slug: newTenant.slug,
+        email: newTenant.email,
+        plan: newTenant.plan
+      },
       user: {
-        userId,
-        email: userData.email,
-        name: userData.name,
-        role: userData.role
+        email: newTenant.email,
+        name: tokenData.name || tokenData.email.split('@')[0],
+        role: isSuperAdmin ? 'super_admin' : 'owner'
       }
     });
 

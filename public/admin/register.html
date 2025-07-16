@@ -23,79 +23,145 @@
         
         .container {
             background: white;
-            padding: 40px;
+            padding: 50px 40px;
             border-radius: 20px;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
             width: 100%;
-            max-width: 500px;
+            max-width: 450px;
+            text-align: center;
         }
         
         .logo {
-            text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 40px;
         }
         
         .logo h1 {
             color: #333;
-            font-size: 32px;
+            font-size: 36px;
             margin-bottom: 8px;
+            font-weight: 700;
         }
         
         .logo p {
             color: #666;
-            font-size: 16px;
+            font-size: 18px;
+            margin-bottom: 10px;
         }
         
-        .form-group {
-            margin-bottom: 20px;
+        .logo .subtitle {
+            color: #888;
+            font-size: 14px;
+            font-weight: 400;
         }
         
-        label {
-            display: block;
-            margin-bottom: 8px;
+        .welcome-text {
+            margin-bottom: 40px;
+        }
+        
+        .welcome-text h2 {
             color: #333;
-            font-weight: 500;
+            font-size: 24px;
+            margin-bottom: 15px;
+            font-weight: 600;
         }
         
-        input[type="text"],
-        input[type="email"],
-        input[type="password"] {
-            width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #e1e5e9;
-            border-radius: 10px;
+        .welcome-text p {
+            color: #666;
             font-size: 16px;
-            transition: border-color 0.2s;
+            line-height: 1.5;
         }
         
-        input[type="text"]:focus,
-        input[type="email"]:focus,
-        input[type="password"]:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        
-        .btn {
+        .btn-google {
             width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 10px;
+            padding: 18px;
+            background: white;
+            color: #333;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 30px;
+            position: relative;
+            overflow: hidden;
         }
         
-        .btn:hover {
+        .btn-google:hover {
+            background: #f8f9fa;
+            border-color: #4285f4;
             transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(66, 133, 244, 0.15);
         }
         
-        .btn:disabled {
+        .btn-google:active {
+            transform: translateY(0);
+        }
+        
+        .btn-google svg {
+            width: 22px;
+            height: 22px;
+            flex-shrink: 0;
+        }
+        
+        .btn-google:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
+        }
+        
+        .features {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .features h3 {
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        
+        .features ul {
+            list-style: none;
+            text-align: left;
+        }
+        
+        .features li {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .features li::before {
+            content: '✓';
+            color: #28a745;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .login-link {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .login-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .login-link a:hover {
+            text-decoration: underline;
         }
         
         .message {
@@ -117,75 +183,91 @@
             border: 1px solid #f5c6cb;
         }
         
-        .availability {
-            font-size: 14px;
-            margin-top: 5px;
-        }
-        
-        .availability.available {
-            color: #28a745;
-        }
-        
-        .availability.unavailable {
-            color: #dc3545;
-        }
-        
-        .password-hint {
-            font-size: 12px;
+        .loading {
+            display: none;
+            margin-top: 20px;
             color: #666;
-            margin-top: 5px;
         }
         
-        .divider {
-            text-align: center;
-            margin: 20px 0;
-            position: relative;
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 2px solid #667eea;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
         }
         
-        .divider::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: #e1e5e9;
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
         
-        .divider span {
-            background: white;
-            padding: 0 10px;
-            position: relative;
-            color: #666;
+        .tenant-setup {
+            display: none;
+            margin-top: 30px;
+            padding: 20px;
+            background: #e3f2fd;
+            border-radius: 12px;
+            border: 2px solid #2196f3;
+        }
+        
+        .tenant-setup h3 {
+            color: #1976d2;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
             font-size: 14px;
         }
         
-        .btn-google {
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #2196f3;
+        }
+        
+        .btn-complete {
             width: 100%;
             padding: 14px;
-            background: white;
-            color: #333;
-            border: 2px solid #e1e5e9;
-            border-radius: 10px;
+            background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
+            transition: transform 0.2s;
         }
         
-        .btn-google:hover {
-            background: #f8f9fa;
-            border-color: #4285f4;
+        .btn-complete:hover {
             transform: translateY(-2px);
         }
         
-        .btn-google svg {
-            width: 20px;
-            height: 20px;
+        .btn-complete:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
         }
     </style>
 </head>
@@ -193,44 +275,18 @@
     <div class="container">
         <div class="logo">
             <h1>iAN SaaS</h1>
-            <p>Registra tu empresa</p>
+            <p>Plataforma de Chatbots con IA</p>
+            <div class="subtitle">Registra tu empresa en segundos</div>
         </div>
         
-        <form id="registerForm">
-            <div class="form-group">
-                <label for="companyName">Nombre de la Empresa</label>
-                <input type="text" id="companyName" name="companyName" required>
-                <div class="availability" id="availability"></div>
+        <div id="initial-screen">
+            <div class="welcome-text">
+                <h2>¡Únete a iAN!</h2>
+                <p>Crea chatbots inteligentes para tu empresa y mejora la atención al cliente automatizada.</p>
             </div>
             
-            <div class="form-group">
-                <label for="email">Email Corporativo</label>
-                <input type="email" id="email" name="email" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="password">Contraseña</label>
-                <input type="password" id="password" name="password" required>
-                <div class="password-hint">
-                    Mínimo 8 caracteres. Evita usar símbolos especiales como ! por ahora.
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label for="contactName">Nombre del Contacto</label>
-                <input type="text" id="contactName" name="contactName" required>
-            </div>
-            
-            <button type="submit" class="btn" id="submitBtn">
-                Crear Cuenta
-            </button>
-            
-            <div class="divider">
-                <span>o</span>
-            </div>
-            
-            <button type="button" class="btn-google" id="googleSignInBtn" style="display: none;">
-                <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+            <button type="button" class="btn-google" id="googleSignUpBtn">
+                <svg viewBox="0 0 24 24" width="22" height="22" xmlns="http://www.w3.org/2000/svg">
                     <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
                         <path fill="#4285F4" d="M -3.264 51.509 C -3.264 50.719 -3.334 49.969 -3.454 49.239 L -14.754 49.239 L -14.754 53.749 L -8.284 53.749 C -8.574 55.229 -9.424 56.479 -10.684 57.329 L -10.684 60.329 L -6.824 60.329 C -4.564 58.239 -3.264 55.159 -3.264 51.509 Z"/>
                         <path fill="#34A853" d="M -14.754 63.239 C -11.514 63.239 -8.804 62.159 -6.824 60.329 L -10.684 57.329 C -11.764 58.049 -13.134 58.489 -14.754 58.489 C -17.884 58.489 -20.534 56.379 -21.484 53.529 L -25.464 53.529 L -25.464 56.619 C -23.494 60.539 -19.444 63.239 -14.754 63.239 Z"/>
@@ -240,7 +296,43 @@
                 </svg>
                 <span>Registrarse con Google</span>
             </button>
-        </form>
+            
+            <div class="features">
+                <h3>✨ Lo que obtienes:</h3>
+                <ul>
+                    <li>10 mensajes gratis por día por chatbot</li>
+                    <li>Chatbots ilimitados en plan gratuito</li>
+                    <li>Integración fácil en tu sitio web</li>
+                    <li>Panel de control intuitivo</li>
+                    <li>Análisis de conversaciones</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="tenant-setup" id="tenant-setup">
+            <h3>📝 Completa el registro</h3>
+            <p style="margin-bottom: 20px; color: #666;">Solo necesitamos el nombre de tu empresa para crear tu cuenta:</p>
+            
+            <form id="completeRegistrationForm">
+                <div class="form-group">
+                    <label for="companyName">Nombre de tu empresa</label>
+                    <input type="text" id="companyName" name="companyName" required placeholder="ej. Mi Empresa S.A.">
+                </div>
+                
+                <button type="submit" class="btn-complete" id="completeBtn">
+                    Crear mi cuenta
+                </button>
+            </form>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <span>Configurando tu cuenta...</span>
+        </div>
+        
+        <div class="login-link">
+            ¿Ya tienes cuenta? <a href="/admin/login.html">Inicia sesión aquí</a>
+        </div>
         
         <div class="message" id="message"></div>
     </div>
@@ -249,53 +341,37 @@
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
         
         let supabase = null;
-        let config = null;
+        let pendingOAuthData = null;
         
-        // Fetch configuration
-        async function loadConfig() {
+        // Initialize Supabase
+        async function initSupabase() {
             try {
-                const response = await fetch('/api/config/public');
-                config = await response.json();
+                // For now, we'll use the direct config until we set up the config endpoint
+                const supabaseUrl = 'https://gcuhsqmcsksbpaorcsag.supabase.co';
+                const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdWhzcW1jc2tzYnBhb3Jjc2FnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE1MTAzODIsImV4cCI6MjA2NzA4NjM4Mn0.j7G2FJjzPXdJpKOKfp5qDZDl0VLJHYpIGKKgvdCEP6A';
                 
-                if (config.features.googleAuth && config.supabase) {
-                    supabase = createClient(config.supabase.url, config.supabase.anonKey, {
+                if (supabaseUrl && supabaseAnonKey) {
+                    supabase = createClient(supabaseUrl, supabaseAnonKey, {
                         auth: {
                             flowType: 'implicit',
                             detectSessionInUrl: true,
-                            autoRefreshToken: true
+                            autoRefreshToken: true,
+                            persistSession: true
                         }
                     });
-                    document.getElementById('googleSignInBtn').style.display = 'flex';
                     
-                    // Check if we have a session after OAuth redirect
-                    checkSession();
+                    // Check for existing session after OAuth redirect
+                    await checkSession();
                 } else {
-                    document.getElementById('googleSignInBtn').style.display = 'none';
-                    document.querySelector('.divider').style.display = 'none';
+                    showMessage('Google OAuth no está configurado. Contacta al administrador.', 'error');
                 }
             } catch (error) {
-                console.error('Failed to load config:', error);
-                document.getElementById('googleSignInBtn').style.display = 'none';
-                document.querySelector('.divider').style.display = 'none';
+                console.error('Error initializing Supabase:', error);
+                showMessage('Error de configuración. Contacta al administrador.', 'error');
             }
         }
         
-        // Load config on page load
-        loadConfig();
-        
-        // Global logout function for Supabase
-        window.logoutSupabase = async function() {
-            if (supabase) {
-                const { error } = await supabase.auth.signOut();
-                if (error) {
-                    console.error('Supabase logout error:', error);
-                    throw error;
-                }
-                console.log('Successfully logged out of Supabase');
-            }
-        };
-        
-        // Check for Supabase session after OAuth redirect
+        // Check for existing Supabase session
         async function checkSession() {
             if (!supabase) return;
             
@@ -309,84 +385,162 @@
                         provider: session.user.app_metadata?.provider
                     });
                     
-                    // Send session to our backend
-                    const response = await fetch('/api/supabase-auth/session', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            user: {
-                                id: session.user.id,
-                                email: session.user.email,
-                                name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
-                                avatar_url: session.user.user_metadata?.avatar_url,
-                                provider: session.user.app_metadata?.provider || 'google'
-                            },
-                            access_token: session.access_token
-                        })
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (response.ok && data.requiresRegistration) {
-                        // Pre-fill the form with OAuth data
-                        window.setOAuthToken(data.tempToken);
-                        const payload = JSON.parse(atob(data.tempToken.split('.')[1]));
-                        if (payload.email) {
-                            document.getElementById('email').value = payload.email;
-                            document.getElementById('email').readOnly = true;
-                        }
-                        if (payload.name) {
-                            document.getElementById('contactName').value = payload.name;
-                        }
-                        
-                        // Hide password field for OAuth users
-                        const passwordGroup = document.querySelector('input[id="password"]').closest('.form-group');
-                        if (passwordGroup) passwordGroup.style.display = 'none';
-                        
-                        showMessage('Por favor completa el registro con los datos de tu empresa', 'success');
-                    } else if (response.ok && data.token) {
-                        // User exists and has tenant - redirect to dashboard
-                        localStorage.setItem('token', data.token);
-                        window.location.href = '/admin/dashboard.html';
-                    } else if (data.conflict) {
-                        // Handle conflicts
-                        window.location.href = `/admin/oauth-conflict.html?conflict=${data.conflict}&token=${encodeURIComponent(data.tempToken)}&email=${encodeURIComponent(session.user.email)}`;
-                    } else {
-                        showMessage(data.error || 'Error al procesar la autenticación', 'error');
-                    }
+                    // Send session to backend for tenant creation
+                    await handleOAuthSession(session);
                 }
             } catch (error) {
                 console.error('Session check error:', error);
             }
         }
         
-        // Google Sign In Handler
-        document.getElementById('googleSignInBtn').addEventListener('click', async () => {
+        // Handle OAuth session with backend
+        async function handleOAuthSession(session) {
+            showLoading(true);
+            
+            try {
+                const response = await fetch('/api/supabase-auth/session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        user: {
+                            id: session.user.id,
+                            email: session.user.email,
+                            name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
+                            avatar_url: session.user.user_metadata?.avatar_url,
+                            provider: session.user.app_metadata?.provider || 'google'
+                        },
+                        access_token: session.access_token
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.requiresRegistration) {
+                    // User needs to complete registration (create tenant)
+                    pendingOAuthData = data;
+                    showTenantSetup(session.user);
+                } else if (response.ok && data.token) {
+                    // User already has tenant - redirect to dashboard
+                    localStorage.setItem('token', data.token);
+                    showMessage('¡Bienvenido de vuelta! Redirigiendo...', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/admin/dashboard.html';
+                    }, 1500);
+                } else {
+                    throw new Error(data.error || 'Error al procesar la autenticación');
+                }
+            } catch (error) {
+                console.error('OAuth session handling error:', error);
+                showMessage('Error al procesar la autenticación: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Show tenant setup form
+        function showTenantSetup(user) {
+            document.getElementById('initial-screen').style.display = 'none';
+            document.getElementById('tenant-setup').style.display = 'block';
+            
+            // Pre-fill company name suggestion
+            const emailDomain = user.email.split('@')[1];
+            const domainName = emailDomain.split('.')[0];
+            const suggestion = domainName.charAt(0).toUpperCase() + domainName.slice(1);
+            
+            document.getElementById('companyName').value = suggestion;
+            document.getElementById('companyName').select();
+        }
+        
+        // Google Sign Up Handler
+        document.getElementById('googleSignUpBtn').addEventListener('click', async () => {
             if (!supabase) {
-                showMessage('Google login no configurado. Por favor contacta al administrador.', 'error');
+                showMessage('Google OAuth no está configurado. Contacta al administrador.', 'error');
                 return;
             }
             
             try {
+                showLoading(true);
+                
                 const { data, error } = await supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
-                        redirectTo: `${window.location.origin}/admin/login.html`
+                        redirectTo: `${window.location.origin}/admin/register.html`,
+                        queryParams: {
+                            access_type: 'offline',
+                            prompt: 'consent',
+                        }
                     }
                 });
                 
                 if (error) {
-                    console.error('Google OAuth error:', error);
-                    showMessage('Error al iniciar sesión con Google', 'error');
+                    throw error;
                 }
             } catch (error) {
-                console.error('Supabase error:', error);
-                showMessage('Error de configuración. Por favor, contacte al administrador.', 'error');
+                console.error('Google OAuth error:', error);
+                showMessage('Error al iniciar sesión con Google: ' + error.message, 'error');
+                showLoading(false);
             }
         });
         
+        // Complete registration form handler
+        document.getElementById('completeRegistrationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!pendingOAuthData) {
+                showMessage('Error: No hay datos de OAuth pendientes', 'error');
+                return;
+            }
+            
+            const completeBtn = document.getElementById('completeBtn');
+            const originalText = completeBtn.textContent;
+            
+            completeBtn.disabled = true;
+            completeBtn.textContent = 'Creando cuenta...';
+            
+            try {
+                const formData = new FormData(e.target);
+                const companyName = formData.get('companyName').trim();
+                
+                if (!companyName) {
+                    throw new Error('El nombre de la empresa es obligatorio');
+                }
+                
+                const response = await fetch('/api/supabase-auth/complete-registration', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        token: pendingOAuthData.tempToken,
+                        tenantName: companyName,
+                        tenantSlug: companyName.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.token) {
+                    localStorage.setItem('token', result.token);
+                    showMessage('¡Cuenta creada exitosamente! Redirigiendo al dashboard...', 'success');
+                    
+                    setTimeout(() => {
+                        window.location.href = '/admin/dashboard.html';
+                    }, 2000);
+                } else {
+                    throw new Error(result.error || 'Error al completar el registro');
+                }
+            } catch (error) {
+                console.error('Registration completion error:', error);
+                showMessage('Error: ' + error.message, 'error');
+            } finally {
+                completeBtn.disabled = false;
+                completeBtn.textContent = originalText;
+            }
+        });
+        
+        // Utility functions
         function showMessage(text, type) {
             const message = document.getElementById('message');
             message.className = `message ${type}`;
@@ -399,278 +553,17 @@
                 }, 5000);
             }
         }
-    </script>
-    
-    <script>
-        const form = document.getElementById('registerForm');
-        const submitBtn = document.getElementById('submitBtn');
-        const message = document.getElementById('message');
-        const companyNameInput = document.getElementById('companyName');
-        const availability = document.getElementById('availability');
         
-        let checkTimeout;
-        let oauthToken = null;
-        
-        // Make oauthToken available globally for module script
-        window.setOAuthToken = function(token) {
-            oauthToken = token;
-        };
-        
-        // Check for OAuth parameters
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('oauth') && urlParams.has('token')) {
-            oauthToken = urlParams.get('token');
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            const googleBtn = document.getElementById('googleSignUpBtn');
             
-            // Decode token to pre-fill form
-            try {
-                const payload = JSON.parse(atob(oauthToken.split('.')[1]));
-                if (payload.email) {
-                    document.getElementById('email').value = payload.email;
-                    document.getElementById('email').readOnly = true;
-                }
-                if (payload.name) {
-                    document.getElementById('contactName').value = payload.name;
-                }
-                
-                // Hide password field for OAuth users
-                const passwordGroup = document.querySelector('input[id="password"]').closest('.form-group');
-                if (passwordGroup) passwordGroup.style.display = 'none';
-            } catch (error) {
-                console.error('Error parsing OAuth token:', error);
-            }
+            loading.style.display = show ? 'block' : 'none';
+            googleBtn.disabled = show;
         }
         
-        // Check company name availability
-        companyNameInput.addEventListener('input', () => {
-            clearTimeout(checkTimeout);
-            const name = companyNameInput.value.trim();
-            
-            if (name.length < 3) {
-                availability.textContent = '';
-                return;
-            }
-            
-            checkTimeout = setTimeout(async () => {
-                try {
-                    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-                    const response = await fetch(`/api/register/check-availability/${slug}`);
-                    const data = await response.json();
-                    
-                    if (data.available) {
-                        availability.textContent = '✅ Nombre disponible';
-                        availability.className = 'availability available';
-                    } else {
-                        availability.textContent = '❌ Nombre no disponible';
-                        availability.className = 'availability unavailable';
-                    }
-                } catch (error) {
-                    availability.textContent = '';
-                }
-            }, 500);
-        });
-        
-        // Handle form submission
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Creando cuenta...';
-            message.style.display = 'none';
-            
-            const formData = new FormData(form);
-            const data = Object.fromEntries(formData);
-            
-            // Handle OAuth registration differently
-            if (oauthToken) {
-                try {
-                    const response = await fetch('/api/supabase-auth/complete-registration', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            token: oauthToken,
-                            tenantName: data.companyName,
-                            tenantSlug: data.companyName.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-                        })
-                    });
-                    
-                    const result = await response.json();
-                    
-                    if (response.ok && result.token) {
-                        localStorage.setItem('token', result.token);
-                        window.location.href = '/admin/dashboard.html';
-                        return;
-                    } else {
-                        throw new Error(result.error || 'Error al completar registro');
-                    }
-                } catch (error) {
-                    message.className = 'message error';
-                    message.textContent = error.message;
-                    message.style.display = 'block';
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'Crear Cuenta';
-                    return;
-                }
-            }
-            
-            // Validate password for problematic characters (only for non-OAuth)
-            const problematicChars = /["\\\r\n\t]/;
-            if (!oauthToken && data.password && problematicChars.test(data.password)) {
-                message.className = 'message error';
-                message.innerHTML = 'La contraseña contiene caracteres no permitidos: comillas dobles ("), barras inversas (\\), o saltos de línea';
-                message.style.display = 'block';
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Crear Cuenta';
-                return;
-            }
-            
-            try {
-                let response;
-                
-                if (oauthToken) {
-                    // OAuth registration - use different endpoint
-                    response = await fetch('/api/supabase-auth/complete-registration', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            token: oauthToken,
-                            tenantName: data.companyName,
-                            tenantSlug: data.companyName.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-                        })
-                    });
-                } else {
-                    // Regular registration
-                    response = await fetch('/api/register/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(data)
-                    });
-                }
-                
-                const result = await response.json();
-                
-                if (response.ok && (result.success || result.token)) {
-                    // OAuth registration returns token directly
-                    if (oauthToken && result.token) {
-                        localStorage.setItem('token', result.token);
-                        window.location.href = '/admin/dashboard.html';
-                        return;
-                    }
-                    
-                    message.className = 'message success';
-                    
-                    // Check if email verification is needed
-                    const needsVerification = result.user && result.user.emailVerified === false;
-                    const nextSteps = result.nextSteps || [];
-                    
-                    let messageHTML = `<strong>¡Cuenta creada exitosamente!</strong><br>`;
-                    messageHTML += `Empresa: ${result.tenant?.name || data.companyName}<br><br>`;
-                    
-                    if (needsVerification) {
-                        // Hide the form completely
-                        form.style.display = 'none';
-                        
-                        // Show prominent verification required message
-                        message.className = 'message';
-                        message.style.display = 'block';
-                        message.style.background = '#ffeaa7';
-                        message.style.border = '2px solid #fdcb6e';
-                        message.style.color = '#856404';
-                        
-                        message.innerHTML = `
-                            <div style="text-align: center; padding: 20px;">
-                                <h2 style="color: #e17055; margin-bottom: 15px;">⚠️ VERIFICACIÓN OBLIGATORIA</h2>
-                                <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                                    <p style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">
-                                        NO PUEDES INICIAR SESIÓN hasta verificar tu email
-                                    </p>
-                                    <p style="font-size: 16px; margin-bottom: 15px;">
-                                        Hemos enviado un enlace de verificación a:<br>
-                                        <strong style="font-size: 18px; color: #2d3436;">${result.user.email}</strong>
-                                    </p>
-                                    <div style="background: #dfe6e9; padding: 15px; border-radius: 5px; text-align: left;">
-                                        <strong>Próximos pasos:</strong>
-                                        <ol style="margin: 10px 0 0 20px;">
-                                            <li>Abre tu email</li>
-                                            <li>Busca el mensaje de "iAN Chatbot"</li>
-                                            <li>Haz clic en el enlace de verificación</li>
-                                            <li>Después podrás iniciar sesión</li>
-                                        </ol>
-                                    </div>
-                                </div>
-                                <div style="background: #fab1a0; padding: 15px; border-radius: 5px; margin-bottom: 15px;">
-                                    <strong>¿No recibiste el email?</strong>
-                                    <ul style="margin: 10px 0 0 20px; text-align: left;">
-                                        <li>Revisa tu carpeta de SPAM</li>
-                                        <li>Espera hasta 5 minutos</li>
-                                        <li>Verifica que el email sea correcto</li>
-                                    </ul>
-                                </div>
-                                <a href="/admin/login.html" style="display: inline-block; padding: 12px 30px; background: #74b9ff; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
-                                    Ir al Login (después de verificar)
-                                </a>
-                            </div>
-                        `;
-                        
-                        // Stop here - don't show the regular success message
-                        return;
-                    }
-                    
-                    if (nextSteps.length > 0) {
-                        messageHTML += `<strong>Próximos pasos:</strong><br>`;
-                        messageHTML += '<ul style="text-align: left;">';
-                        nextSteps.forEach(step => {
-                            messageHTML += `<li>${step}</li>`;
-                        });
-                        messageHTML += '</ul>';
-                    }
-                    
-                    messageHTML += `
-                        <br>
-                        <strong>Para acceder al dashboard:</strong><br>
-                        📧 Email: ${result.user.email}<br>
-                        🔑 Contraseña: La que ingresaste<br>
-                        <br>
-                        <a href="/admin" style="color: #155724; text-decoration: underline;">
-                            Ir al Dashboard →
-                        </a>
-                    `;
-                    
-                    message.innerHTML = messageHTML;
-                    message.style.display = 'block';
-                    form.reset();
-                    availability.textContent = '';
-                } else {
-                    throw new Error(result.error || 'Error desconocido');
-                }
-            } catch (error) {
-                message.className = 'message error';
-                let errorMessage = error.message;
-                
-                // Translate common error messages to Spanish
-                if (errorMessage.includes('email already exists') || errorMessage.includes('duplicate key error') || errorMessage.includes('email_1 dup key')) {
-                    errorMessage = 'Este email ya está registrado. Por favor usa otro email o inicia sesión.';
-                } else if (errorMessage.includes('Company name already taken')) {
-                    errorMessage = 'Este nombre de empresa ya está en uso. Por favor elige otro.';
-                } else if (errorMessage.includes('Failed to fetch')) {
-                    errorMessage = 'Error de conexión. Por favor verifica tu conexión a internet.';
-                }
-                
-                message.innerHTML = `
-                    <strong>Error al crear la cuenta:</strong><br>
-                    ${errorMessage}
-                `;
-                message.style.display = 'block';
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Crear Cuenta';
-            }
-        });
+        // Initialize on page load
+        initSupabase();
     </script>
 </body>
 </html>
